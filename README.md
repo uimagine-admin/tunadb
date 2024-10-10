@@ -1,6 +1,7 @@
 
 
-# Cassandra Simulation Project
+# TunaDB
+^name for database to be decided :)
 
 This project is a simplified version of a Cassandra-like distributed database written in Go. It is designed as a part of a Computer Science course called **Distributed Systems and Computing**. The project simulates core distributed database concepts such as consistent hashing, gossip protocol, quorum-based consensus, and more.
 
@@ -85,41 +86,21 @@ tuna-db/
    cd tunadb
    ```
 
-2.	**Build the Docker containers**:
+
+2.	**Generate gRPC code**:
+Generate the server and client code using protoc:
+Here you might want to install and set the env path variables!
+
+    ```bash
+    protoc --go_out=. --go-grpc_out=. proto/cassandra.proto
+    ```
+3.	**Build and Run the Docker containers**:
 Navigate to the docker directory and run the following command to start up the Cassandra nodes:
 
     ```
     docker-compose -f docker/docker-compose.yml up --build
     ```
 
-3.	**Generate gRPC code**:
-Generate the server and client code using protoc:
-
-    ```bash
-    protoc --go_out=. --go-grpc_out=. proto/cassandra.proto
-    ```
-
-4.	**Run the server**:
-Build and run the server for each node:
-
-    ```bash
-    go run cmd/server/main.go
-    ```
-
-5.	**Run the client**:
-Use the client to interact with the server:
-
-    ```bash
-    go run cmd/client/main.go
-    ```
-
-
-5.	**Test the cluster**:
-Use the client to interact with the server:
-
-    ```bash
-    ./scripts/test_data.sh
-    ```
 
 ### Folder Structure Overview
 
