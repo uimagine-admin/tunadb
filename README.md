@@ -5,7 +5,7 @@
 This project is a simplified version of a Cassandra-like distributed database written in Go. It is designed as a part of a Computer Science course called **Distributed Systems and Computing**. The project simulates core distributed database concepts such as consistent hashing, gossip protocol, quorum-based consensus, and more.
 
 ## Project Structure
-
+```
 tuna-db/
 │
 ├── docker/
@@ -67,7 +67,7 @@ tuna-db/
 ├── go.sum                       # Go dependencies file
 ├── README.md                    # Project documentation and setup instructions
 └── .gitignore                   # Git ignore file for ignoring unnecessary files
-
+```
 ## Getting Started
 
 ### Prerequisites
