@@ -1,31 +1,28 @@
 version: '3'
 services:
   cassandra-node1:
-    image: cassandra:latest
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile
     container_name: cassandra-node1
     environment:
-      CASSANDRA_CLUSTER_NAME: "MyCluster"
-      CASSANDRA_SEEDS: "cassandra-node1"
+      NODE_NAME: "Node1"
+      PEER_ADDRESS: "cassandra-node2:50051"
     ports:
-      - "9042:9042"
+      - "50051:50051"
     networks:
       - cassandra-net
 
   cassandra-node2:
-    image: cassandra:latest
+    build:
+      context: ..
+      dockerfile: ./docker/Dockerfile
     container_name: cassandra-node2
     environment:
-      CASSANDRA_CLUSTER_NAME: "MyCluster"
-      CASSANDRA_SEEDS: "cassandra-node1"
-    networks:
-      - cassandra-net
-
-  cassandra-node3:
-    image: cassandra:latest
-    container_name: cassandra-node3
-    environment:
-      CASSANDRA_CLUSTER_NAME: "MyCluster"
-      CASSANDRA_SEEDS: "cassandra-node1"
+      NODE_NAME: "Node2"
+      PEER_ADDRESS: "cassandra-node1:50051"
+    ports:
+      - "50052:50051"
     networks:
       - cassandra-net
 

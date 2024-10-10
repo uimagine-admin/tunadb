@@ -81,15 +81,15 @@ tuna-db/
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/yourusername/cassandra-simulation.git
-   cd cassandra-simulation
+   git clone https://github.com/uimagine-admin/tunadb.git
+   cd tunadb
    ```
 
 2.	**Build the Docker containers**:
 Navigate to the docker directory and run the following command to start up the Cassandra nodes:
 
     ```
-    docker-compose up -d
+    docker-compose -f docker/docker-compose.yml up --build
     ```
 
 3.	**Generate gRPC code**:

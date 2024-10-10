@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package cassandragrpc;
+
+option go_package = "path/to/your/project/api";
+
+service CassandraService {
+  // Method for sending a "Hello" message between nodes.
+  rpc SayHello (HelloRequest) returns (HelloResponse) {}
+}
+
+// The request message containing the name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greeting.
+message HelloResponse {
+  string message = 1;
+}
