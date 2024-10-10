@@ -1,0 +1,34 @@
+version: '3'
+services:
+  cassandra-node1:
+    image: cassandra:latest
+    container_name: cassandra-node1
+    environment:
+      CASSANDRA_CLUSTER_NAME: "MyCluster"
+      CASSANDRA_SEEDS: "cassandra-node1"
+    ports:
+      - "9042:9042"
+    networks:
+      - cassandra-net
+
+  cassandra-node2:
+    image: cassandra:latest
+    container_name: cassandra-node2
+    environment:
+      CASSANDRA_CLUSTER_NAME: "MyCluster"
+      CASSANDRA_SEEDS: "cassandra-node1"
+    networks:
+      - cassandra-net
+
+  cassandra-node3:
+    image: cassandra:latest
+    container_name: cassandra-node3
+    environment:
+      CASSANDRA_CLUSTER_NAME: "MyCluster"
+      CASSANDRA_SEEDS: "cassandra-node1"
+    networks:
+      - cassandra-net
+
+networks:
+  cassandra-net:
+    driver: bridge
