@@ -17,10 +17,8 @@ tuna-db/
 │   └── cassandra.proto          # Protobuf definitions for gRPC communication between nodes
 │
 ├── cmd/
-│   ├── server/
+│   ├── node/
 │   │   └── main.go              # Entry point for running a Cassandra node server
-│   └── client/
-│       └── main.go              # Entry point for a client to interact with nodes
 │
 ├── internal/
 │   ├── consistenthash/          # Consistent hashing implementation for distributing data
@@ -88,7 +86,7 @@ tuna-db/
 
 
 2.	**Generate gRPC code**:
-Generate the server and client code using protoc:
+Generate the grpc code using protoc:
 Here you might want to install and set the env path variables!
 
     ```bash
@@ -100,6 +98,9 @@ Navigate to the docker directory and run the following command to start up the C
     ```
     docker-compose -f docker/docker-compose.yml up --build
     ```
+
+### It should look like this!
+ ![alt text](image.png)
 
 
 ### Folder Structure Overview
