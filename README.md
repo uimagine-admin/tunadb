@@ -123,6 +123,7 @@ Use the client to interact with the server:
 
 ### Folder Structure Overview
 
+```
 •	docker/: Contains Docker and Docker Compose configurations to set up a multi-node Cassandra cluster.
 •	proto/: Holds the protobuf file (cassandra.proto) for defining the gRPC service used for communication between nodes.
 •	cmd/: Contains entry points for running the server and client applications.
@@ -135,7 +136,7 @@ Use the client to interact with the server:
 •	utils/: Provides helper functions like logging and configuration management.
 •	api/: Contains generated gRPC code to facilitate communication between client and server.
 •	scripts/: Bash scripts to automate running the cluster and testing the system.
-
+```
 ### License
 
 This project is licensed under the MIT License. See the LICENSE file for more details.
