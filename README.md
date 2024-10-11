@@ -25,9 +25,9 @@ tuna-db/
 │   │   └── main.go              # Entry point for running a Cassandra node server
 │
 ├── internal/
-│   ├── consistenthash/          # Consistent hashing implementation for distributing data
-│   │   ├── hash.go              # Ring-based consistent hashing logic
-│   │   └── hash_test.go         # Unit tests for consistent hashing
+│   ├── ring/                    # Consistent hashing implementation for distributing data
+│   │   ├── ring.go              # Ring-based consistent hashing logic
+│   │   └── ring_test.go         # Unit tests for consistent hashing
 │   │
 │   ├── db/                      # Database and storage logic
 │   │   ├── memtable.go          # In-memory storage structure for fast read/write
