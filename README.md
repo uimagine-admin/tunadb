@@ -5,6 +5,10 @@
 
 This project is a simplified version of a Cassandra-like distributed database written in Go. It is designed as a part of a Computer Science course called **Distributed Systems and Computing**. The project simulates core distributed database concepts such as consistent hashing, gossip protocol, quorum-based consensus, and more.
 
+### Contribution Guidelines
+
+See the Task ID in Notion. Use this task id when you create PR, so Notion could sync automatically.
+
 ## Project Structure
 ```
 tuna-db/
