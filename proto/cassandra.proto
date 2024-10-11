@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package cassandragrpc;
 
-option go_package = "path/to/your/project/api";
+option go_package = "/api";
 
 service CassandraService {
   // Method for sending a "Hello" message between nodes.
