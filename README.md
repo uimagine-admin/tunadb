@@ -4,6 +4,10 @@
 
 This project is a simplified version of a Cassandra-like distributed database written in Go. It is designed as a part of a Computer Science course called **Distributed Systems and Computing**. The project simulates core distributed database concepts such as consistent hashing, gossip protocol, quorum-based consensus, and more.
 
+### Contribution Guidelines
+
+See the Task ID in Notion. Use this task id when you create PR, so Notion could sync automatically.
+
 ## Project Structure
 
 ```
@@ -21,9 +25,9 @@ tuna-db/
 │   │   └── main.go              # Entry point for running a Cassandra node server
 │
 ├── internal/
-│   ├── consistenthash/          # Consistent hashing implementation for distributing data
-│   │   ├── hash.go              # Ring-based consistent hashing logic
-│   │   └── hash_test.go         # Unit tests for consistent hashing
+│   ├── ring/                    # Consistent hashing implementation for distributing data
+│   │   ├── ring.go              # Ring-based consistent hashing logic
+│   │   └── ring_test.go         # Unit tests for consistent hashing
 │   │
 │   ├── db/                      # Database and storage logic
 │   │   ├── memtable.go          # In-memory storage structure for fast read/write
