@@ -13,27 +13,30 @@ service CassandraService {
 //sent by client to node (coordinator)
 // also sent from node (coordinator) to nodes
 message ReadRequest {
-  string partitionKey = 1;           // Field number 1
-  repeated string columns = 2;       // Field number 2
-  string name = 3; //name of node or client which sent request
+  string date = 1; 
+  string pageId = 2;
+  repeated string columns = 3;       
+  string name = 4; //name of node or client which sent request
 }
 
 //sent by node to client
 //and also other nodes to coordinator nodes
 message ReadResponse {
-  string partitionKey = 1;           
-  repeated string columns = 2;       
-  repeated string values = 3;      
-  string name =4; //name of node which replied
+  string date = 1;
+  string pageId = 2;          
+  repeated string columns = 3;       
+  repeated string values = 4;      
+  string name = 5; //name of node which replied
 }
 
 //sent by client to node (coordinator)
 // also sent from node (coordinator) to nodes
 message WriteRequest {
-  string partitionKey = 1;           
-  repeated string columns = 2;       
-  repeated string values = 3;
-  string name = 4;        
+  string date = 1;
+  string pageId = 2;
+  string event = 3;
+  string componentId = 4;
+  string name = 5;        
 }
 
 //sent by node to client

@@ -47,15 +47,16 @@ func sendRead(peerAddress string) {
 	
 
 	resp, err := client.Read(ctx, &pb.ReadRequest{
-		PartitionKey:"1",
-		Columns:      []string{"col1"},
+		Date:"3/11/2024",
+		PageId:"1",
+		Columns: []string{"event","componentId","count"},
 		Name: os.Getenv("NODE_NAME"),
 	})
 
 	if err != nil {
 		log.Fatalf("Could not read peer: %v", err)
 	}
-	log.Printf("Received response from %s. partition key: %s ,cols:%s , values: %s \n",resp.Name,resp.PartitionKey,resp.Columns,resp.Values)
+	log.Printf("Received read response from %s: pageID %s , Date %s , cols:%s , values: %s \n",resp.Name,resp.PageId,resp.Date,resp.Columns,resp.Values)
 }
 
 //client sending to server
@@ -72,14 +73,15 @@ func sendWrite(peerAddress string) {
 	defer cancel()
 	
 	resp, err := client.Write(ctx, &pb.WriteRequest{
-		PartitionKey:"1",
-		Columns:      []string{"col1"},
-		Values: []string{"col1 new value"},
+		Date:"3/11/2024",
+		PageId:"1",
+		Event: "click",
+		ComponentId:"btn1",
 		Name: os.Getenv("NODE_NAME"),
 	})
 
 	if err != nil {
 		log.Fatalf("Could not send write to peer: %v", err)
 	}
-	log.Printf("Received response , Ack:  %v from %s \n",resp.Ack,resp.Name)
+	log.Printf("Received write response , Ack:  %v from %s \n",resp.Ack,resp.Name)
 }

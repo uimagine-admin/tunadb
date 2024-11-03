@@ -19,17 +19,18 @@ type server struct {
 
 //receiver of request?
 func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
-	log.Printf("Received request from %s , partition key: %s , columns: %s",req.Name, req.PartitionKey,req.Columns)
+	log.Printf("Received read request from %s , PageId: %s ,Date: %s, columns: %s",req.Name, req.PageId,req.Date,req.Columns)
 	//if not coordinator:find from memtable , if not then SS table
 
 	//if coordinator : hash -> send to other nodes , await reply , quorum
 
 	//reply client if coordinator /coordinator if normal node
 	return &pb.ReadResponse{
-		PartitionKey: "1",
-		Columns:      req.Columns,
-		Values:       []string{"col 1 Value"},
-		Name: os.Getenv("NODE_NAME"),
+		Date: "3/11/2024",
+		PageId: "1",      
+		Columns: req.Columns,
+		Values:   []string{"click","btn1","1"},
+		Name: os.Getenv("NODE_NAME"), //name of node which replied
 	}, nil
 }
 
@@ -37,7 +38,7 @@ func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResp
 	//write logic would be here: 
 	//if coordinator : hash -> send to other nodes , await reply , if crash detected->repair
 	//if not coordinator : wirte to commitlog->memtable->check if memtable>capacity ->SStable
-	log.Printf("Written: %s for column %s",req.Values,req.Columns)
+	log.Printf("Received Write request from %s : Date %s PageId %s Event %s ComponentId %s ",req.Name,req.Date,req.PageId,req.Event,req.ComponentId)
 
 	//reply client if coordinator /coordinator if normal node
 	return &pb.WriteResponse{
