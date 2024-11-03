@@ -13,14 +13,16 @@ type ConsistentHashingRing struct {
 	ring            map[uint64]types.Node
 	sortedKeys      []uint64
 	numVirtualNodes uint64
+	numReplicas     int
 }
 
 // public function (constructor) - to be called outside in the main driver function
-func CreateConsistentHashingRing(numVirtualNodes uint64) *ConsistentHashingRing {
+func CreateConsistentHashingRing(numVirtualNodes uint64, numReplicas int) *ConsistentHashingRing {
 	return &ConsistentHashingRing{
 		ring:            make(map[uint64]types.Node),
 		sortedKeys:      []uint64{},
 		numVirtualNodes: numVirtualNodes,
+		numReplicas:     numReplicas,
 	}
 }
 
@@ -34,9 +36,11 @@ func (ring *ConsistentHashingRing) String() string {
 	return fmt.Sprintf(
 		"ConsistentHashingRing:\n"+
 			"NumVirtualNodes: %v\n"+
+			"NumReplicas: %v\n"+
 			"Ring:\n%v\n"+
 			"SortedKeys: %v",
 		ring.numVirtualNodes,
+		ring.numReplicas,
 		strings.Join(ringDetails, "\n"),
 		ring.sortedKeys,
 	)
@@ -82,8 +86,8 @@ func removeFromSlice(slice []uint64, value uint64) []uint64 {
 	return slice
 }
 
-// Public Method: Get Node
-func (chr *ConsistentHashingRing) GetNode(key string) *types.Node {
+// Public Method: Get Nodes (returns multiple nodes for replication)
+func (chr *ConsistentHashingRing) GetNodes(key string) []types.Node {
 	if len(chr.ring) == 0 {
 		return nil
 	}
@@ -94,11 +98,13 @@ func (chr *ConsistentHashingRing) GetNode(key string) *types.Node {
 		return chr.sortedKeys[i] >= hashKey
 	})
 
-	if idx == len(chr.sortedKeys) {
-		idx = 0
+	var nodes []types.Node
+	for i := 0; i < chr.numReplicas; i++ {
+		currentIdx := (idx + i) % len(chr.sortedKeys)
+		hashAtIdx := chr.sortedKeys[currentIdx]
+		node := chr.ring[hashAtIdx]
+		nodes = append(nodes, node)
 	}
-	hashAtIdx := chr.sortedKeys[idx]
-	node := chr.ring[hashAtIdx]
 
-	return &node
+	return nodes
 }
