@@ -26,6 +26,11 @@ func TestCreateConsistentHashingRing(t *testing.T) {
 		t.Errorf("Expected numVirtualNodes to be 3, got %d", ring.numVirtualNodes)
 	}
 
+	t.Logf("Checking if numReplicas is set correctly, expected 2, got %d.", ring.numReplicas)
+	if ring.numReplicas != 2 {
+		t.Errorf("Expected numReplicas to be 2, got %d", ring.numReplicas)
+	}
+
 	t.Log("Checking if the ring map is empty initially.")
 	if len(ring.ring) != 0 {
 		// It should start empty before we add any nodes
@@ -49,6 +54,15 @@ func TestAddNode(t *testing.T) {
 		t.Errorf("Expected %d virtual nodes in the ring, but got %d", ring.numVirtualNodes, len(ring.ring))
 	} else {
 		t.Logf("Node added successfully with %d virtual nodes.", ring.numVirtualNodes)
+	}
+
+	t.Log("Verifying that the correct node is returned for a key.")
+	key := "testKey"
+	assignedNodes := ring.GetNodes(key)
+	if len(assignedNodes) == 0 {
+		t.Errorf("Expected at least 1 node to be assigned for the key, but got none.")
+	} else {
+		t.Logf("Assigned nodes for key '%s': %+v", key, assignedNodes)
 	}
 }
 
