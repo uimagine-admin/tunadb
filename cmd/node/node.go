@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -20,11 +19,30 @@ type server struct {
 
 //receiver of request?
 func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
-	log.Printf("Received request , partition key: %s , columns: %s", req.PartitionKey,req.Columns)
+	log.Printf("Received request from %s , partition key: %s , columns: %s",req.Name, req.PartitionKey,req.Columns)
+	//if not coordinator:find from memtable , if not then SS table
+
+	//if coordinator : hash -> send to other nodes , await reply , quorum
+
+	//reply client if coordinator /coordinator if normal node
 	return &pb.ReadResponse{
 		PartitionKey: "1",
-		Columns:      []string{"sample1"},
-		Values:       []string{""},
+		Columns:      req.Columns,
+		Values:       []string{"col 1 Value"},
+		Name: os.Getenv("NODE_NAME"),
+	}, nil
+}
+
+func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
+	//write logic would be here: 
+	//if coordinator : hash -> send to other nodes , await reply , if crash detected->repair
+	//if not coordinator : wirte to commitlog->memtable->check if memtable>capacity ->SStable
+	log.Printf("Written: %s for column %s",req.Values,req.Columns)
+
+	//reply client if coordinator /coordinator if normal node
+	return &pb.WriteResponse{
+		Ack:   true,
+		Name: os.Getenv("NODE_NAME"),
 	}, nil
 }
 
@@ -35,10 +53,7 @@ func main() {
 	// Add a sleep to allow server startup
 	time.Sleep(2 * time.Second)
 
-	// Simulate peer communication
-	if os.Getenv("PEER_ADDRESS") != "" {
-		sendRead(os.Getenv("PEER_ADDRESS"))
-	}
+	
 
 	// Block forever to keep the node running
 	select {}
@@ -59,24 +74,3 @@ func startServer() {
 	}
 }
 
-//client sending to server
-func sendRead(peerAddress string) {
-	conn, err := grpc.Dial(peerAddress, grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		log.Fatalf("Did not connect to peer: %v", err)
-	}
-	defer conn.Close()
-
-	client := pb.NewCassandraServiceClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	resp, err := client.Read(ctx, &pb.ReadRequest{
-		PartitionKey:"1",
-		Columns:      []string{"sample1"},})
-
-	if err != nil {
-		log.Fatalf("Could not greet peer: %v", err)
-	}
-	fmt.Printf("Received resp from peer.Partition Key %s , values: %s \n",resp.PartitionKey,resp.Values)
-}

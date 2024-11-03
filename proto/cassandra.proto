@@ -5,16 +5,40 @@ package cassandragrpc;
 option go_package = "/api";
 
 service CassandraService {
-  // Method for sending a "Hello" message between nodes.
-  rpc SayHello (HelloRequest) returns (HelloResponse) {}
+  
+  rpc Read (ReadRequest) returns (ReadResponse) {}
+  rpc Write (WriteRequest) returns (WriteResponse) {}
 }
 
-// The request message containing the name.
-message HelloRequest {
-  string name = 1;
+//sent by client to node (coordinator)
+// also sent from node (coordinator) to nodes
+message ReadRequest {
+  string partitionKey = 1;           // Field number 1
+  repeated string columns = 2;       // Field number 2
+  string name = 3; //name of node or client which sent request
 }
 
-// The response message containing the greeting.
-message HelloResponse {
-  string message = 1;
+//sent by node to client
+//and also other nodes to coordinator nodes
+message ReadResponse {
+  string partitionKey = 1;           
+  repeated string columns = 2;       
+  repeated string values = 3;      
+  string name =4; //name of node which replied
+}
+
+//sent by client to node (coordinator)
+// also sent from node (coordinator) to nodes
+message WriteRequest {
+  string partitionKey = 1;           
+  repeated string columns = 2;       
+  repeated string values = 3;
+  string name = 4;        
+}
+
+//sent by node to client
+//and also other nodes to coordinator nodes
+message WriteResponse {
+  bool ack = 1;
+  string name = 2;                      
 }
