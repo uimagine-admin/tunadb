@@ -18,10 +18,14 @@ type server struct {
 	pb.UnimplementedCassandraServiceServer
 }
 
-// SayHello implements cassandragrpc.CassandraServiceServer
-func (s *server) SayHello(ctx context.Context, req *pb.HelloRequest) (*pb.HelloResponse, error) {
-	log.Printf("Received request from: %s", req.Name)
-	return &pb.HelloResponse{Message: "Hello, " + req.Name + " from " + os.Getenv("NODE_NAME")}, nil
+//receiver of request?
+func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
+	log.Printf("Received request , partition key: %s , columns: %s", req.PartitionKey,req.Columns)
+	return &pb.ReadResponse{
+		PartitionKey: "1",
+		Columns:      []string{"sample1"},
+		Values:       []string{""},
+	}, nil
 }
 
 func main() {
@@ -33,13 +37,14 @@ func main() {
 
 	// Simulate peer communication
 	if os.Getenv("PEER_ADDRESS") != "" {
-		sendHelloToPeer(os.Getenv("PEER_ADDRESS"))
+		sendRead(os.Getenv("PEER_ADDRESS"))
 	}
 
 	// Block forever to keep the node running
 	select {}
 }
 
+//server listening
 func startServer() {
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
@@ -54,7 +59,8 @@ func startServer() {
 	}
 }
 
-func sendHelloToPeer(peerAddress string) {
+//client sending to server
+func sendRead(peerAddress string) {
 	conn, err := grpc.Dial(peerAddress, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("Did not connect to peer: %v", err)
@@ -65,9 +71,12 @@ func sendHelloToPeer(peerAddress string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	resp, err := client.SayHello(ctx, &pb.HelloRequest{Name: os.Getenv("NODE_NAME")})
+	resp, err := client.Read(ctx, &pb.ReadRequest{
+		PartitionKey:"1",
+		Columns:      []string{"sample1"},})
+
 	if err != nil {
 		log.Fatalf("Could not greet peer: %v", err)
 	}
-	fmt.Printf("Received greeting from peer: %s\n", resp.Message)
+	fmt.Printf("Received resp from peer.Partition Key %s , values: %s \n",resp.PartitionKey,resp.Values)
 }

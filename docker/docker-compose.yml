@@ -1,26 +1,26 @@
 version: '3'
 services:
-  cassandra-node1:
+  client:
     build:
       context: ..
-      dockerfile: ./docker/Dockerfile
-    container_name: cassandra-node1
+      dockerfile: ./docker/DockerfileClient
+    container_name: client
     environment:
-      NODE_NAME: "Node1"
-      PEER_ADDRESS: "cassandra-node2:50051"
+      NODE_NAME: "Client"
+      PEER_ADDRESS: "cassandra-node:50051"
     ports:
       - "50051:50051"
     networks:
       - cassandra-net
 
-  cassandra-node2:
+  cassandra-node:
     build:
       context: ..
-      dockerfile: ./docker/Dockerfile
-    container_name: cassandra-node2
+      dockerfile: ./docker/DockerfileNode
+    container_name: cassandra-node
     environment:
-      NODE_NAME: "Node2"
-      PEER_ADDRESS: "cassandra-node1:50051"
+      NODE_NAME: "Node"
+      PEER_ADDRESS: "client:50051"
     ports:
       - "50052:50051"
     networks:
