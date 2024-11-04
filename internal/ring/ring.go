@@ -13,14 +13,17 @@ type ConsistentHashingRing struct {
 	ring            map[uint64]types.Node
 	sortedKeys      []uint64
 	numVirtualNodes uint64
+	numReplicas     int
+	uniqueNodes     []types.Node
 }
 
 // public function (constructor) - to be called outside in the main driver function
-func CreateConsistentHashingRing(numVirtualNodes uint64) *ConsistentHashingRing {
+func CreateConsistentHashingRing(numVirtualNodes uint64, numReplicas int) *ConsistentHashingRing {
 	return &ConsistentHashingRing{
 		ring:            make(map[uint64]types.Node),
 		sortedKeys:      []uint64{},
 		numVirtualNodes: numVirtualNodes,
+		numReplicas:     numReplicas,
 	}
 }
 
@@ -34,9 +37,11 @@ func (ring *ConsistentHashingRing) String() string {
 	return fmt.Sprintf(
 		"ConsistentHashingRing:\n"+
 			"NumVirtualNodes: %v\n"+
+			"NumReplicas: %v\n"+
 			"Ring:\n%v\n"+
 			"SortedKeys: %v",
 		ring.numVirtualNodes,
+		ring.numReplicas,
 		strings.Join(ringDetails, "\n"),
 		ring.sortedKeys,
 	)
@@ -60,6 +65,7 @@ func (chr *ConsistentHashingRing) AddNode(node types.Node) {
 	sort.Slice(chr.sortedKeys, func(i, j int) bool {
 		return chr.sortedKeys[i] < chr.sortedKeys[j]
 	})
+	chr.uniqueNodes = append(chr.uniqueNodes, node)
 }
 
 // Public Method: Remove Node
@@ -70,10 +76,11 @@ func (chr *ConsistentHashingRing) DeleteNode(node types.Node) {
 		delete(chr.ring, hashKey)
 		chr.sortedKeys = removeFromSlice(chr.sortedKeys, hashKey)
 	}
+	chr.uniqueNodes = removeFromSlice(chr.uniqueNodes, node)
 }
 
-// util function
-func removeFromSlice(slice []uint64, value uint64) []uint64 {
+// removeFromSlice removes an element from a slice and returns the new slice.
+func removeFromSlice[T comparable](slice []T, value T) []T {
 	for i, v := range slice {
 		if value == v {
 			return append(slice[:i], slice[i+1:]...)
@@ -82,8 +89,8 @@ func removeFromSlice(slice []uint64, value uint64) []uint64 {
 	return slice
 }
 
-// Public Method: Get Node
-func (chr *ConsistentHashingRing) GetNode(key string) *types.Node {
+// Public Method: Get Nodes (returns multiple nodes for replication)
+func (chr *ConsistentHashingRing) GetNodes(key string) []types.Node {
 	if len(chr.ring) == 0 {
 		return nil
 	}
@@ -94,11 +101,35 @@ func (chr *ConsistentHashingRing) GetNode(key string) *types.Node {
 		return chr.sortedKeys[i] >= hashKey
 	})
 
-	if idx == len(chr.sortedKeys) {
-		idx = 0
+	numNodes := len(chr.uniqueNodes)
+	if numNodes < chr.numReplicas {
+		fmt.Println("WARN: Number of nodes in the ring is less than the number of replicas")
 	}
-	hashAtIdx := chr.sortedKeys[idx]
-	node := chr.ring[hashAtIdx]
 
-	return &node
+	numOfNodesToReturn := min(numNodes, chr.numReplicas)
+
+	var nodes []types.Node
+	i := 0
+	for len(nodes) < numOfNodesToReturn {
+		currentIdx := (idx + i) % len(chr.sortedKeys)
+		hashAtIdx := chr.sortedKeys[currentIdx]
+		node := chr.ring[hashAtIdx]
+
+		if !containsNode(nodes, node) {
+			nodes = append(nodes, node)
+		}
+		i++
+	}
+
+	return nodes
+}
+
+// util function to check if a node is already in the list
+func containsNode(nodes []types.Node, node types.Node) bool {
+	for _, n := range nodes {
+		if n.ID == node.ID {
+			return true
+		}
+	}
+	return false
 }
