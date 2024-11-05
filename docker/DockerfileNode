@@ -12,7 +12,7 @@ RUN go mod download
 COPY . .
 
 # Build the Go node
-RUN go build -o node ./cmd/node/main.go
+RUN go build -o node ./cmd/node/node.go
 
 # Expose the gRPC port
 EXPOSE 50051
