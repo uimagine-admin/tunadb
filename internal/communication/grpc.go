@@ -9,7 +9,7 @@ import (
 
 
 
-func sendRead(Ctx Context, address string, req *pb.ReadRequest) {
+func SendRead(Ctx *context.Context, address string, req *pb.ReadRequest) (*pb.ReadResponse, error) {
 	log.Printf("connecting and sending read request \n")
 	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
@@ -30,11 +30,12 @@ func sendRead(Ctx Context, address string, req *pb.ReadRequest) {
 	if err != nil {
 		log.Fatalf("Could not read peer: %v", err)
 	}
-	log.Printf("sendRead: Received read response . Name: %s, pageID: %s , cols:%s , values: %s \n",resp.Name,resp.PageId,resp.Columns,resp.Values)
+	log.Printf("Received read response . Name: %s, pageID: %s , cols:%s , values: %s \n",resp.Name,resp.PageId,resp.Columns,resp.Values)
+	return resp,err
 }
 
 
-func sendWrite(Ctx Context, address string, req *pb.WriteRequest) {
+func SendWrite(Ctx *context.Context, address string, req *pb.WriteRequest) (*pb.WriteResponse, error) {
 	log.Printf("connecting and sending write request\n")
 	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
@@ -53,4 +54,5 @@ func sendWrite(Ctx Context, address string, req *pb.WriteRequest) {
 		log.Fatalf("Could not send write to peer: %v", err)
 	}
 	log.Printf("Received write response , Ack:  %v from %s \n",resp.Ack,resp.Name)
+	return resp,err
 }
