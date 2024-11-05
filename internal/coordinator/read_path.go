@@ -12,7 +12,7 @@ import (
 )
 
 // Read fetches the value for a given key with quorum-based consistency.
-func (h CoordinatorHandler) Read(ctx context.Context, key string) (string, error) {
+func (h *CoordinatorHandler) Read(ctx context.Context, key string) (string, error) {
 	ring := h.GetRing()
 	replicas := ring.GetNodes(key)
 	if len(replicas) == 0 {
@@ -32,11 +32,15 @@ func (h CoordinatorHandler) Read(ctx context.Context, key string) (string, error
 
 			// TODO replace with updated sendRead,
 			//send the read request with the key
-			resp, err := sendRead(ctx, address, &pb.ReadRequest{
-				PageId:  key,
-				Name:    h.GetNode().Name,
-				Columns: []string{"value"},
-			})
+			// resp, err := sendRead(ctx, address, &pb.ReadRequest{
+			// 	PageId:  key,
+			// 	Name:    h.GetNode().Name,
+			// 	Columns: []string{"value"},
+			// })
+
+			// mock the sendRead
+			var err error = nil
+			resp := pb.ReadResponse{Values: []string{"value" + replica.ID}}
 
 			if err != nil {
 				fmt.Printf("error reading from %s: %v\n", address, err)
