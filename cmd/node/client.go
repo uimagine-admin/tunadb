@@ -19,7 +19,7 @@ func main() {
 	// Add a sleep to allow server startup
 	time.Sleep(2 * time.Second)
 
-	//peer address should be the coordinator address - need to find a way to get it
+	//peer address : random node address
 	// Simulate peer communication
 	if os.Getenv("PEER_ADDRESS") != "" {
 		sendRead(os.Getenv("PEER_ADDRESS"))
@@ -51,6 +51,7 @@ func sendRead(peerAddress string) {
 		PageId:"1",
 		Columns: []string{"event","componentId","count"},
 		Name: os.Getenv("NODE_NAME"),
+		NodeType:"IS_CLIENT",
 	})
 
 	if err != nil {
@@ -78,6 +79,7 @@ func sendWrite(peerAddress string) {
 		Event: "click",
 		ComponentId:"btn1",
 		Name: os.Getenv("NODE_NAME"),
+		NodeType:"IS_CLIENT",
 	})
 
 	if err != nil {

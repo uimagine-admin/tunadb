@@ -13,10 +13,11 @@ service CassandraService {
 //sent by client to node (coordinator)
 // also sent from node (coordinator) to nodes
 message ReadRequest {
-  string date = 1; 
+  string date = 1;
   string pageId = 2;
   repeated string columns = 3;       
   string name = 4; //name of node or client which sent request
+  string nodeType = 5;
 }
 
 //sent by node to client
@@ -27,6 +28,7 @@ message ReadResponse {
   repeated string columns = 3;       
   repeated string values = 4;      
   string name = 5; //name of node which replied
+  string nodeType = 6;
 }
 
 //sent by client to node (coordinator)
@@ -36,12 +38,14 @@ message WriteRequest {
   string pageId = 2;
   string event = 3;
   string componentId = 4;
-  string name = 5;        
+  string name = 5;
+  string nodeType = 6;        
 }
 
 //sent by node to client
 //and also other nodes to coordinator nodes
 message WriteResponse {
   bool ack = 1;
-  string name = 2;                      
+  string name = 2;
+  string nodeType = 3;                      
 }

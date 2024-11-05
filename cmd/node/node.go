@@ -17,33 +17,34 @@ type server struct {
 	pb.UnimplementedCassandraServiceServer
 }
 
-//receiver of request?
+//handle incoming read request
 func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
 	log.Printf("Received read request from %s , PageId: %s ,Date: %s, columns: %s",req.Name, req.PageId,req.Date,req.Columns)
-	//if not coordinator:find from memtable , if not then SS table
+	//call read_path
 
-	//if coordinator : hash -> send to other nodes , await reply , quorum
-
-	//reply client if coordinator /coordinator if normal node
+	//replace below part with reply form read handler
 	return &pb.ReadResponse{
 		Date: "3/11/2024",
 		PageId: "1",      
 		Columns: req.Columns,
-		Values:   []string{"click","btn1","1"},
+		Values:   []string{"click","btn1","1"}, //for now just retrieve a single row
 		Name: os.Getenv("NODE_NAME"), //name of node which replied
+		NodeType:"IS_NODE",
 	}, nil
 }
 
+//handle incoming write request
 func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
-	//write logic would be here: 
-	//if coordinator : hash -> send to other nodes , await reply , if crash detected->repair
-	//if not coordinator : wirte to commitlog->memtable->check if memtable>capacity ->SStable
+	
+
+	//call write_path
 	log.Printf("Received Write request from %s : Date %s PageId %s Event %s ComponentId %s ",req.Name,req.Date,req.PageId,req.Event,req.ComponentId)
 
-	//reply client if coordinator /coordinator if normal node
+	//replace below part with reply
 	return &pb.WriteResponse{
 		Ack:   true,
 		Name: os.Getenv("NODE_NAME"),
+		NodeType:"IS_NODE",
 	}, nil
 }
 
