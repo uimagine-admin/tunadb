@@ -57,3 +57,31 @@ func TestGetTable(t *testing.T) {
 		t.Logf("GetTable correctly did not find non-existent table")
 	}
 }
+
+func TestGetPartition(t *testing.T) {
+	filename := "../data/sample.json" // change this to whatever suits u
+
+	data, err := ReadJSON(filename)
+	if err != nil {
+		t.Fatalf("ReadJSON failed: %s", err)
+	}
+
+	table := GetTable("sample", data)
+	if table == nil {
+		t.Fatalf("GetTable failed to retrieve existing table")
+	}
+
+	partition := GetPartition(table, 1)
+	if partition == nil {
+		t.Errorf("GetPartition failed to retrieve existing partition")
+	} else {
+		t.Logf("GetPartition succeeded: %+v", partition)
+	}
+
+	partition = GetPartition(table, 999)
+	if partition != nil {
+		t.Errorf("GetPartition retrieved non-existent partition")
+	} else {
+		t.Logf("GetPartition correctly did not find non-existent partition")
+	}
+}
