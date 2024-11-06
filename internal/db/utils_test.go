@@ -34,3 +34,26 @@ func TestCheckTableExists(t *testing.T) {
 		t.Errorf("CheckTableExists found non-existent table")
 	}
 }
+
+func TestGetTable(t *testing.T) {
+	filename := "../data/sample.json" // change this to whatever suits u
+
+	data, err := ReadJSON(filename)
+	if err != nil {
+		t.Fatalf("ReadJSON failed: %s", err)
+	}
+
+	table := GetTable("sample", data)
+	if table == nil {
+		t.Errorf("GetTable failed to retrieve existing table")
+	} else {
+		t.Logf("GetTable succeeded: %+v", table)
+	}
+
+	table = GetTable("nonexistent_table", data)
+	if table != nil {
+		t.Errorf("GetTable retrieved non-existent table")
+	} else {
+		t.Logf("GetTable correctly did not find non-existent table")
+	}
+}
