@@ -3,7 +3,7 @@ package db
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 )
 
@@ -11,14 +11,19 @@ func ReadJSON(filename string) (LocalData, error) {
 	var localData LocalData
 
 	jsonFile, err := os.Open(filename)
-	// if we os.Open returns an error then handle it
+	// if os.Open returns an error then handle it
 	if err != nil {
 		fmt.Printf("Error reading JSON file: %s\n", err.Error())
 		return LocalData{}, err
 	}
 	defer jsonFile.Close()
 
-	byteValue, _ := ioutil.ReadAll(jsonFile)
+	byteValue, err := io.ReadAll(jsonFile)
+	if err != nil {
+		fmt.Printf("Error reading file content: %s\n", err.Error())
+		return LocalData{}, err
+	}
+
 	err = json.Unmarshal(byteValue, &localData)
 	if err != nil {
 		fmt.Printf("Error unmarshalling JSON: %s\n", err.Error())
@@ -26,6 +31,7 @@ func ReadJSON(filename string) (LocalData, error) {
 	}
 	return localData, nil
 }
+
 func CheckTableExists(tableName string, data LocalData) bool {
 	for _, table := range data {
 		if table.TableName == tableName {
@@ -34,6 +40,7 @@ func CheckTableExists(tableName string, data LocalData) bool {
 	}
 	return false
 }
+
 func GetTable(tableName string, data LocalData) *Table {
 	for _, table := range data {
 		if table.TableName == tableName {
@@ -42,6 +49,7 @@ func GetTable(tableName string, data LocalData) *Table {
 	}
 	return nil
 }
+
 func GetPartition(table *Table, hashedPK int64) *Partition {
 	for _, partition := range table.Partitions {
 		if partition.Metadata.PartitionKey == hashedPK {
@@ -50,16 +58,17 @@ func GetPartition(table *Table, hashedPK int64) *Partition {
 	}
 	return nil
 }
+
 func PersistNewTable(data LocalData, filename string, table *Table) error {
 	data = append(data, table)
-	//MarshalIndent instead of Marshal for legibility during debug
-	jsonFile, err := json.MarshalIndent(data, "", "")
+	// MarshalIndent instead of Marshal for legibility during debug
+	jsonFile, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		fmt.Printf("Error in marshalling data: %s\n", err.Error())
 		return err
 	}
-	//set permission to readable by all, writeable by user
-	err = ioutil.WriteFile(filename, jsonFile, 0644)
+	// Set permission to readable by all, writable by user
+	err = os.WriteFile(filename, jsonFile, 0644)
 	if err != nil {
 		fmt.Printf("Error in writing file: %s\n", err.Error())
 		return err
@@ -71,7 +80,8 @@ func PersistNewTable(data LocalData, filename string, table *Table) error {
 func PersistTable(data LocalData, filename string, table *Table) error {
 	for _, tableData := range data {
 		if tableData.TableName == table.TableName {
-
+			// Update the existing table data
+			tableData = table
 		}
 	}
 	jsonFile, err := json.MarshalIndent(data, "", "\t")
@@ -80,7 +90,7 @@ func PersistTable(data LocalData, filename string, table *Table) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(filename, jsonFile, 0644)
+	err = os.WriteFile(filename, jsonFile, 0644)
 	if err != nil {
 		fmt.Printf("Error in writing file: %s\n", err.Error())
 		return err
