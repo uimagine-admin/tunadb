@@ -1,7 +1,9 @@
 package db
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/uimagine-admin/tunadb/internal/types"
@@ -48,6 +50,27 @@ type Row struct {
 type Cell struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
+}
+
+func (ld LocalData) String() string {
+	var sb strings.Builder
+	for _, table := range ld {
+		sb.WriteString(fmt.Sprintf("Table: %s\n", table.TableName))
+		sb.WriteString(fmt.Sprintf("Partition Keys: %v\n", table.PartitionKeyNames))
+		for _, partition := range table.Partitions {
+			sb.WriteString(fmt.Sprintf("  Partition Key: %d\n", partition.Metadata.PartitionKey))
+			sb.WriteString(fmt.Sprintf("  Partition Key Values: %v\n", partition.Metadata.PartitionKeyValues))
+			for _, row := range partition.Rows {
+				sb.WriteString(fmt.Sprintf("    Row Created At: %s\n", row.CreatedAt))
+				sb.WriteString(fmt.Sprintf("    Row Updated At: %s\n", row.UpdatedAt))
+				sb.WriteString(fmt.Sprintf("    Row Deleted At: %s\n", row.DeletedAt))
+				for _, cell := range row.Cells {
+					sb.WriteString(fmt.Sprintf("      Cell Name: %s, Cell Value: %s\n", cell.Name, cell.Value))
+				}
+			}
+		}
+	}
+	return sb.String()
 }
 
 // MarshalJSON is used to convert the timestamp to JSON
