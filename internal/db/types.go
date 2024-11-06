@@ -115,5 +115,5 @@ func (t EpochTime) String() string {
 
 type ReadResponse struct {
 	SourceNode *types.Node
-	Row        Row
+	Rows       []*Row
 }
