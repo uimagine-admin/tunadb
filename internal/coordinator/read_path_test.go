@@ -2,7 +2,6 @@ package coordinator
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -20,19 +19,19 @@ var mockResponses = map[string]*pb.ReadResponse{
 }
 
 // Mock sendRead to return static responses based on the node name.
-func sendRead(ctx context.Context, address string, req *pb.ReadRequest) (*pb.ReadResponse, error) {
-	if resp, ok := mockResponses[address]; ok {
-		return resp, nil
-	}
-	return nil, errors.New("node unavailable")
-}
+// func sendRead(ctx context.Context, address string, req *pb.ReadRequest) (*pb.ReadResponse, error) {
+// 	if resp, ok := mockResponses[address]; ok {
+// 		return resp, nil
+// 	}
+// 	return nil, errors.New("node unavailable")
+// }
 
 func TestCoordinatorHandler_Read_QuorumReached(t *testing.T) {
 	ring := ring.CreateConsistentHashingRing(3, 2)
 
 	nodeA := types.Node{ID: "1", Name: "NodeA", IPAddress: "192.168.1.1", Port: 8080}
-	nodeB := types.Node{ID: "1", Name: "NodeB", IPAddress: "192.168.1.2", Port: 8081}
-	nodeC := types.Node{ID: "1", Name: "NodeC", IPAddress: "192.168.1.3", Port: 8082}
+	nodeB := types.Node{ID: "2", Name: "NodeB", IPAddress: "192.168.1.2", Port: 8081}
+	nodeC := types.Node{ID: "3", Name: "NodeC", IPAddress: "192.168.1.3", Port: 8082}
 	t.Logf("Adding nodes: %+v, %+v, and %+v", nodeA, nodeB, nodeC)
 	ring.AddNode(nodeA)
 	ring.AddNode(nodeB)
@@ -94,10 +93,10 @@ func TestReceiveQuorum_Timeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
 
-	resultsChan := make(chan pb.ReadResponse)
+	resultsChan := make(chan *pb.ReadResponse)
 	go func() {
 		time.Sleep(10 * time.Millisecond) // Simulate delay in response
-		resultsChan <- pb.ReadResponse{Values: []string{"value1"}}
+		resultsChan <- &pb.ReadResponse{Values: []string{"value1"}}
 		close(resultsChan)
 	}()
 
@@ -111,13 +110,13 @@ func TestReceiveQuorum_Timeout(t *testing.T) {
 }
 func TestReceiveQuorum_Success(t *testing.T) {
 	ctx := context.Background()
-	resultsChan := make(chan pb.ReadResponse, 3)
+	resultsChan := make(chan *pb.ReadResponse, 3)
 
 	// Mock three responses, two of which match
 	go func() {
-		resultsChan <- pb.ReadResponse{Values: []string{"value1"}}
-		resultsChan <- pb.ReadResponse{Values: []string{"value1"}}
-		resultsChan <- pb.ReadResponse{Values: []string{"value2"}}
+		resultsChan <- &pb.ReadResponse{Values: []string{"value1"}}
+		resultsChan <- &pb.ReadResponse{Values: []string{"value1"}}
+		resultsChan <- &pb.ReadResponse{Values: []string{"value2"}}
 		close(resultsChan)
 	}()
 

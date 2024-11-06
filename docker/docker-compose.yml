@@ -1,5 +1,70 @@
-version: '3'
+version: "3"
 services:
+  # client:
+  #   build:
+  #     context: ..
+  #     dockerfile: ./docker/DockerfileClient
+  #   container_name: client
+  #   environment:
+  #     NODE_NAME: "Client"
+  #     PEER_ADDRESS: "cassandra-node:50051"
+  #   ports:
+  #     - "50051:50051"
+  #   networks:
+  #     - cassandra-net
+
+  # cassandra-node:
+  #   build:
+  #     context: ..
+  #     dockerfile: ./docker/DockerfileNode
+  #   container_name: cassandra-node
+  #   environment:
+  #     NODE_NAME: "Node"
+  #     PEER_ADDRESS: "client:50051"
+  #   ports:
+  #     - "50052:50051"
+  #   networks:
+  #     - cassandra-net
+
+  cassandra-node1:
+    build:
+      context: ..
+      dockerfile: ./docker/DockerfileNode
+    container_name: cassandra-node1
+    environment:
+      NODE_NAME: "Node1"
+      PEER_NODES: "cassandra-node2:50051,cassandra-node3:50051"
+    ports:
+      - "50051:50051"
+    networks:
+      - cassandra-net
+
+  cassandra-node2:
+    build:
+      context: ..
+      dockerfile: ./docker/DockerfileNode
+    container_name: cassandra-node2
+    environment:
+      NODE_NAME: "Node2"
+      PEER_NODES: "cassandra-node1:50051,cassandra-node3:50051"
+    ports:
+      - "50052:50051"
+    networks:
+      - cassandra-net
+
+  cassandra-node3:
+    build:
+      context: ..
+      dockerfile: ./docker/DockerfileNode
+    container_name: cassandra-node3
+    environment:
+      NODE_NAME: "Node3"
+      PEER_NODES: "cassandra-node1:50051,cassandra-node2:50051"
+    ports:
+      - "50053:50051"
+    networks:
+      - cassandra-net
+
   client:
     build:
       context: ..
@@ -7,22 +72,9 @@ services:
     container_name: client
     environment:
       NODE_NAME: "Client"
-      PEER_ADDRESS: "cassandra-node:50051"
+      PEER_ADDRESS: "cassandra-node1:50051" # Point to one of the nodes
     ports:
-      - "50051:50051"
-    networks:
-      - cassandra-net
-
-  cassandra-node:
-    build:
-      context: ..
-      dockerfile: ./docker/DockerfileNode
-    container_name: cassandra-node
-    environment:
-      NODE_NAME: "Node"
-      PEER_ADDRESS: "client:50051"
-    ports:
-      - "50052:50051"
+      - "50054:50051"
     networks:
       - cassandra-net
 
