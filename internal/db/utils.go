@@ -78,10 +78,10 @@ func PersistNewTable(data LocalData, filename string, table *Table) error {
 }
 
 func PersistTable(data LocalData, filename string, table *Table) error {
-	for _, tableData := range data {
+	for i, tableData := range data {
 		if tableData.TableName == table.TableName {
 			// Update the existing table data
-			tableData = table
+			data[i] = table
 		}
 	}
 	jsonFile, err := json.MarshalIndent(data, "", "\t")

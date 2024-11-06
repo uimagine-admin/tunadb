@@ -154,3 +154,88 @@ func TestPersistNewTable(t *testing.T) {
 		t.Logf("PersistNewTable succeeded: %+v", persistedData)
 	}
 }
+
+func TestPersistTable(t *testing.T) {
+	// Create a temporary JSON file for testing
+	filename := "../data/test_sample2.json"
+	originalFilename := "../data/sample.json"
+
+	// Copy the original sample.json to test_sample2.json
+	input, err := os.ReadFile(originalFilename)
+	if err != nil {
+		t.Fatalf("Failed to read original sample.json: %s", err)
+	}
+
+	err = os.WriteFile(filename, input, 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test JSON file: %s", err)
+	}
+	// defer os.Remove(filename)
+
+	// Read the original data
+	data, err := ReadJSON(filename)
+	if err != nil {
+		t.Fatalf("ReadJSON failed: %s", err)
+	}
+
+	// Update the existing table
+	updatedTable := &Table{
+		TableName:         "sample",
+		PartitionKeyNames: []string{"Hospital ID", "Hospital Department"},
+		Partitions: []*Partition{
+			{
+				Metadata: &Metadata{
+					PartitionKey:       1,
+					PartitionKeyValues: []string{"1", "Specialized"},
+				},
+				Rows: []*Row{
+					{
+						CreatedAt: EpochTime(time.Unix(0, 1464175411324447)),
+						UpdatedAt: EpochTime(time.Unix(0, 1464175411324447)),
+						DeletedAt: EpochTime(time.Unix(0, -1)),
+						Cells: []*Cell{
+							{Name: "Bed", Value: "20"},
+							{Name: "Oxygen Tank", Value: "25"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Test PersistTable function
+	err = PersistTable(data, filename, updatedTable)
+	if err != nil {
+		t.Errorf("PersistTable failed: %s", err)
+	}
+
+	// Verify the table was updated
+	persistedData, err := ReadJSON(filename)
+	if err != nil {
+		t.Errorf("Failed to read persisted data: %s", err)
+	}
+
+	if len(persistedData) != 1 {
+		t.Errorf("PersistTable did not update the table correctly: %+v", persistedData)
+	} else {
+		t.Logf("PersistTable succeeded: %+v", persistedData)
+	}
+
+	// Verify the updated values
+	table := GetTable("sample", persistedData)
+	if table == nil {
+		t.Errorf("GetTable failed to retrieve updated table")
+	} else {
+		partition := GetPartition(table, 1)
+		if partition == nil {
+			t.Errorf("GetPartition failed to retrieve updated partition")
+		} else {
+			row := partition.Rows[0]
+			if row.Cells[0].Value != "20" || row.Cells[1].Value != "25" {
+				t.Errorf("PersistTable did not update the row correctly: %+v", row)
+			} else {
+				t.Logf("PersistTable updated the row correctly: %+v", row)
+			}
+		}
+	}
+}
