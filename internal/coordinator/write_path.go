@@ -50,6 +50,10 @@ func (h *CoordinatorHandler) Write(ctx *context.Context, req *pb.WriteRequest) (
 		// for each replica: i'll send an internal write request
 		for _, replica := range replicas {
 			if replica.Name == os.Getenv("NODE_NAME"){
+				//TODO: write to database
+				columns := []string{"Date", "PageId", "Event", "ComponentId"}
+				values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
+				fmt.Printf("writing rows and cols to db %s , %s\n", values,columns)
 				continue
 			} //so it doesnt send to itself
 			wg.Add(1)
