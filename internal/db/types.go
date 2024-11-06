@@ -22,17 +22,17 @@ type Table struct {
 }
 
 type Partition struct {
-	Metadata *PartitionMetadata `json:"partition_metadata"`
-	Rows     []*Row             `json:"rows"`
+	Metadata *Metadata `json:"partition_metadata"`
+	Rows     []*Row    `json:"rows"`
 }
 
 /*
-	PartitionMetadata
+	Metadata
 
 PartitionKey: hash value of the concatenated partition keys
 PartitionKeyValues: values of the table's partition keys
 */
-type PartitionMetadata struct {
+type Metadata struct {
 	PartitionKey       int64    `json:"partition_key"`
 	PartitionKeyValues []string `json:"partition_key_values"`
 }
