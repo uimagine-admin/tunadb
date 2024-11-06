@@ -16,10 +16,9 @@ type EpochTime time.Time
 
 type LocalData []*Table
 type Table struct {
-	TableName          string       `json:"table_name"`
-	PartitionKeyNames  []string     `json:"partition_key_names"`
-	ClusteringKeyNames []string     `json:"clustering_key_names"`
-	Partitions         []*Partition `json:"partitions"`
+	TableName         string       `json:"table_name"`
+	PartitionKeyNames []string     `json:"partition_key_names"`
+	Partitions        []*Partition `json:"partitions"`
 }
 
 type Partition struct {
@@ -39,12 +38,10 @@ type PartitionMetadata struct {
 }
 
 type Row struct {
-	CreatedAt           EpochTime `json:"created_at"`
-	UpdatedAt           EpochTime `json:"updated_at"`
-	DeletedAt           EpochTime `json:"deleted_at"`
-	ClusteringKeyHash   int64     `json:"clustering_key_hash"`
-	ClusteringKeyValues []string  `json:"clustering_key_values"`
-	Cells               []*Cell   `json:"cells"`
+	CreatedAt EpochTime `json:"created_at"`
+	UpdatedAt EpochTime `json:"updated_at"`
+	DeletedAt EpochTime `json:"deleted_at"`
+	Cells     []*Cell   `json:"cells"`
 }
 
 type Cell struct {
