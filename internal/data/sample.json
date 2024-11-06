@@ -1,6 +1,6 @@
 [
   {
-    "table_name": "UTC timestamp",
+    "table_name": "timestamp",
     "partition_key_names": ["Hospital ID", "Hospital Department"],
     "partitions": [
       {
