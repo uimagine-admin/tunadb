@@ -1,6 +1,6 @@
 [
   {
-    "table_name": "timestamp",
+    "table_name": "sample",
     "partition_key_names": ["Hospital ID", "Hospital Department"],
     "partitions": [
       {
