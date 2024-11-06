@@ -1,9 +1,10 @@
 package db
 
 import (
-	"internal/types"
 	"strconv"
 	"time"
+
+	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
 // Handler is for each individual node to handle local read/write to file
