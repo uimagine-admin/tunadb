@@ -15,6 +15,7 @@ import (
 	"github.com/uimagine-admin/tunadb/internal/types"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // server is used to implement cassandragrpc.CassandraServiceServer.
@@ -23,9 +24,9 @@ type server struct {
 }
 
 var peerAddresses = []string{
-	"cassandra-node-1:50051",
-	"cassandra-node-2:50051",
-	"cassandra-node-3:50051",
+	"cassandra-node1:50051",
+	"cassandra-node2:50051",
+	"cassandra-node3:50051",
 }
 
 // handle incoming read request
@@ -33,10 +34,15 @@ func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadRespons
 	log.Printf("Received read request from %s , PageId: %s ,Date: %s, columns: %s", req.Name, req.PageId, req.Date, req.Columns)
 	//call read_path
 
-	// Forward the request to node 2
-	conn, err := grpc.Dial("cassandra-node-2:50051", grpc.WithInsecure(), grpc.WithBlock())
+	// Forward the request to node 2 use WithTransportCredentials and insecure.NewCredentials()
+	// Create a connection to the other node with secure transport credentials
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second) // Add a timeout for better error handling
+	defer cancel()
+
+	conn, err := grpc.NewClient("cassandra-node2:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Did not connect to node 2: %v", err)
+		return nil, err
 	}
 	defer conn.Close()
 
