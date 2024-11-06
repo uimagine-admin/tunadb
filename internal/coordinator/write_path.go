@@ -9,63 +9,89 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"os"
+	"time"
+
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/types"
+	"github.com/uimagine-admin/tunadb/internal/communication"
 )
 
 // Write writes a value for a given key with quorum-based consistency.
 // func (h *CoordinatorHandler)
-func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
-	ring := h.GetRing()
-	replicas := ring.GetNodes(req.PageId)
-	if len(replicas) == 0 {
-		return &pb.WriteResponse{}, errors.New("no available node for key")
+func (h *CoordinatorHandler) Write(ctx *context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
+	//if incoming is from node:
+	if req.NodeType=="IS_NODE"{
+
+		//TODO: write to database
+		columns := []string{"Date", "PageId", "Event", "ComponentId"}
+		values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
+		fmt.Printf("writing rows and cols to db %s , %s\n", values,columns)
+		//write to commitlog->memtable-->SStable
+
+		return &pb.WriteResponse{
+			Ack:   true,
+			Name: os.Getenv("NODE_NAME"),
+			NodeType:"IS_NODE",
+		}, nil
+
+	}else{
+		//if incoming is from client:
+		ring := h.GetRing()
+		replicas := ring.GetNodes(req.PageId)
+		if len(replicas) == 0 {
+			return &pb.WriteResponse{}, errors.New("no available node for key")
+		}
+
+		resultsChan := make(chan *pb.WriteResponse, len(replicas))
+		wg := sync.WaitGroup{}
+
+		// for each replica: i'll send an internal write request
+		for _, replica := range replicas {
+			if replica.Name == os.Getenv("NODE_NAME"){
+				continue
+			} //so it doesnt send to itself
+			wg.Add(1)
+			go func(replica types.Node) {
+				defer wg.Done()
+
+				address := fmt.Sprintf("%s:%d", replica.Name, replica.Port)
+				
+				ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+				
+				resp, err := communication.SendWrite(&ctx_write, address, &pb.WriteRequest{
+					Date:req.Date,
+					PageId:req.PageId,
+					Event: req.Event,
+					ComponentId:req.ComponentId,
+					Name: os.Getenv("NODE_NAME"),
+					NodeType:"IS_NODE",})
+
+				if err != nil {
+					fmt.Printf("error reading from %s: %v\n", address, err)
+					return
+				}
+
+				// get the reply
+				resultsChan <- resp
+			}(replica)
+		}
+
+		// get the reply
+		go func() {
+			wg.Wait()
+			close(resultsChan)
+		}()
+
+		// After getting all acknowledgements, return the response
+		// Future implementation : check who did not send acknowledgements and repair fault
+
+		return &pb.WriteResponse{
+			Ack:   true,
+			Name: os.Getenv("NODE_NAME"),
+			NodeType:"IS_NODE",
+		}, nil
+
 	}
-
-	resultsChan := make(chan pb.WriteResponse, len(replicas))
-	defer close(resultsChan)
-	wg := sync.WaitGroup{}
-
-	// for each replica: send write
-	for _, replica := range replicas {
-		wg.Add(1)
-		go func(replica types.Node) {
-			defer wg.Done()
-
-			address := fmt.Sprintf("%s:%d", replica.Name, replica.Port)
-
-			// TODO replace with updated sendWrite,
-			//send the write request with the key and value
-			// resp, err := sendWrite(ctx, address, &pb.WriteRequest{
-			// 	PageId:  key,
-			// 	Name:    h.GetNode().Name,
-			// 	Columns: []string{"value"},
-			// })
-			// mock the sendWrite
-			var err error = nil
-			resp := pb.WriteResponse{
-				Ack: true,
-			}
-
-			if err != nil {
-				fmt.Printf("error writing to %s: %v\n", address, err)
-				return
-			}
-
-			// get the reply
-			resultsChan <- resp
-		}(replica)
-	}
-
-	// get the reply
-	go func() {
-		wg.Wait()
-	}()
-
-	return &pb.WriteResponse{
-		Ack:      true,
-		Name:     h.currentNode.Name,
-		NodeType: "IS_NODE",
-	}, nil
 }

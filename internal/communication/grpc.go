@@ -34,7 +34,7 @@ func SendRead(Ctx *context.Context, address string, req *pb.ReadRequest) (*pb.Re
 }
 
 func SendWrite(Ctx *context.Context, address string, req *pb.WriteRequest) (*pb.WriteResponse, error) {
-	log.Printf("connecting and sending write request\n")
+	log.Printf("sending write request to %s \n",address)
 	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("Did not connect to node: %v", err)
@@ -49,7 +49,7 @@ func SendWrite(Ctx *context.Context, address string, req *pb.WriteRequest) (*pb.
 	resp, err := client.Write(ctx, req)
 
 	if err != nil {
-		log.Fatalf("Could not send write to peer: %v", err)
+		log.Fatalf("Could not send write to address %s: %v",address, err)
 	}
 	log.Printf("Received write response , Ack:  %v from %s \n", resp.Ack, resp.Name)
 	return resp, err

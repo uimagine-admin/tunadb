@@ -13,7 +13,7 @@ import (
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/ring"
 	"github.com/uimagine-admin/tunadb/internal/types"
-
+	"github.com/uimagine-admin/tunadb/internal/coordinator"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -28,6 +28,8 @@ var peerAddresses = []string{
 	"cassandra-node2:50051",
 	"cassandra-node3:50051",
 }
+//port for internal communication
+var portInternal = "50051"
 
 // handle incoming read request
 func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
@@ -66,17 +68,25 @@ func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadRespons
 }
 
 // handle incoming write request
-func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
+func (s *server) Write(Ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
 
 	//call write_path
 	log.Printf("Received Write request from %s : Date %s PageId %s Event %s ComponentId %s ", req.Name, req.Date, req.PageId, req.Event, req.ComponentId)
+	ring, err := startRing(peerAddresses)
+	if err != nil {
+		return &pb.WriteResponse{}, err
+	}
 
-	//replace below part with reply
-	return &pb.WriteResponse{
-		Ack:      true,
-		Name:     os.Getenv("NODE_NAME"),
-		NodeType: "IS_NODE",
-	}, nil
+	var portnum,_= strconv.ParseUint("50051", 10, 64)
+	currentNode:=&types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
+	
+	c:=coordinator.NewCoordinatorHandler(ring , currentNode)
+	//call write_path
+	ctx, _ := context.WithTimeout(context.Background(), time.Second)
+	resp,err:=c.Write(&ctx,req)
+	
+	return resp, nil
+
 }
 
 func main() {
