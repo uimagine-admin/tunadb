@@ -1,6 +1,6 @@
 [
   {
-    "table_name": "Hospitals by City",
+    "table_name": "UTC timestamp",
     "partition_key_names": ["Hospital ID", "Hospital Department"],
     "partitions": [
       {
