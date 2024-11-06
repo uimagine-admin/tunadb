@@ -14,8 +14,8 @@ func TestReadJSON(t *testing.T) {
 		t.Errorf("ReadJSON failed: %s", err)
 	}
 	if len(data) != 1 || data[0].TableName != "timestamp" {
-		t.Errorf("ReadJSON returned unexpected data: %+v", data)
+		t.Errorf("ReadJSON returned unexpected data: %s", data)
 	} else {
-		t.Logf("ReadJSON succeeded: %+v", data)
+		t.Logf("ReadJSON succeeded: %s", data)
 	}
 }
