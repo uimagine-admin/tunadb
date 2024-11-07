@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 
+	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/ring"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
@@ -14,6 +15,7 @@ type Handler interface {
 }
 
 type CoordinatorHandler struct {
+	pb.UnimplementedCassandraServiceServer
 	hashRing    *ring.ConsistentHashingRing
 	currentNode *types.Node
 }
