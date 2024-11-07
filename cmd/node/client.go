@@ -28,15 +28,15 @@ func main() {
 			NodeType: "IS_CLIENT",
 		})
 
-		ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
-		// sendWrite(os.Getenv("PEER_ADDRESS"))
-		communication.SendWrite(&ctx_write, os.Getenv("PEER_ADDRESS"), &pb.WriteRequest{
-			Date:        "3/11/2024",
-			PageId:      "1",
-			Event:       "click",
-			ComponentId: "btn1",
-			Name:        os.Getenv("NODE_NAME"),
-			NodeType:    "IS_CLIENT"})
+		// ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+		// // sendWrite(os.Getenv("PEER_ADDRESS"))
+		// communication.SendWrite(&ctx_write, os.Getenv("PEER_ADDRESS"), &pb.WriteRequest{
+		// 	Date:        "3/11/2024",
+		// 	PageId:      "1",
+		// 	Event:       "click",
+		// 	ComponentId: "btn1",
+		// 	Name:        os.Getenv("NODE_NAME"),
+		// 	NodeType:    "IS_CLIENT"})
 
 		// Block forever to keep the node running
 		select {}
