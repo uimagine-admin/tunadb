@@ -51,6 +51,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 				fmt.Printf("simulating read from db for pageID %s\n", req.PageId)
 				// TODO: read from the database
 				// HandleRead --> return array [ {pageId: "pageID", element: "elememt", timestamp: 123423, event: "", updatedAt: "", createdAt: ""}]
+				db.HandleRead(h.GetNode().ID, req)
 				columns := []string{"Date", "PageId", "Event", "ComponentId"}
 				values := []string{"2021-09-01T00:00:00Z", req.PageId, "click", "component1"}
 				fmt.Printf("reading rows and cols from db %s , %s\n", values, columns)
