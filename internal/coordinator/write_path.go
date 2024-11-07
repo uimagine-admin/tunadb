@@ -20,10 +20,11 @@ import (
 // Write writes a value for a given key with quorum-based consistency.
 // func (h *CoordinatorHandler)
 func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
-	ring := h.GetRing()
-	replicas := ring.GetNodes(req.PageId)
-	if len(replicas) == 0 {
-		return &pb.WriteResponse{}, errors.New("no available node for key")
+	//if incoming is from node:
+	if req.NodeType == "IS_NODE" {
+
+		//TODO: write to database
+		columns := []string{"Date", "PageId", "Event", "ComponentId"}
 		values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
 		fmt.Printf("writing rows and cols to db %s , %s\n", values, columns)
 		//write to commitlog->memtable-->SStable

@@ -10,7 +10,6 @@ import (
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
-	"github.com/uimagine-admin/tunadb/internal/replication"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
@@ -61,7 +60,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 
 				ctx_read, _ := context.WithTimeout(context.Background(), time.Second)
 				//send the read request with the key
-				resp, err := communication.SendRead(&ctx_read, address, &pb.ReadRequest{
+				_, err := communication.SendRead(&ctx_read, address, &pb.ReadRequest{
 					Date:     req.Date,
 					PageId:   req.PageId,
 					Name:     os.Getenv("NODE_NAME"),
@@ -75,7 +74,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 				}
 
 				// get the reply
-				resultsChan <- resp
+				// resultsChan <- resp
 			}(replica)
 		}
 
@@ -86,11 +85,11 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 		}()
 
 		// Check for quorum
-		quorumValue, err := replication.ReceiveQuorum(ctx, resultsChan, len(replicas))
-		if err != nil {
-			return &pb.ReadResponse{}, err
-		}
-		fmt.Printf("quorumValue: %v\n", quorumValue)
+		// quorumValue, err := replication.ReceiveQuorum(ctx, resultsChan, len(replicas))
+		// if err != nil {
+		// 	return &pb.ReadResponse{}, err
+		// }
+		// fmt.Printf("quorumValue: %v\n", quorumValue)
 
 		// return the value
 		return &pb.ReadResponse{
