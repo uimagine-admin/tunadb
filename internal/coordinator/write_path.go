@@ -14,6 +14,7 @@ import (
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
+	"github.com/uimagine-admin/tunadb/internal/db"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
@@ -22,8 +23,10 @@ import (
 func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
 	//if incoming is from node:
 	if req.NodeType == "IS_NODE" {
-
-		//TODO: write to database
+		err := db.HandleInsert(h.GetNode().ID, req)
+		if err != nil {
+			// TODO: ERROR HANDLING - @jaytaykay
+		}
 		columns := []string{"Date", "PageId", "Event", "ComponentId"}
 		values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
 		fmt.Printf("writing rows and cols to db %s , %s\n", values, columns)
@@ -49,7 +52,10 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 		// for each replica: i'll send an internal write request
 		for _, replica := range replicas {
 			if replica.Name == os.Getenv("NODE_NAME") {
-				//TODO: write to database
+				err := db.HandleInsert(h.GetNode().ID, req)
+				if err != nil {
+					// TODO: ERROR HANDLING - @jaytaykay
+				}
 				columns := []string{"Date", "PageId", "Event", "ComponentId"}
 				values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
 				fmt.Printf("writing rows and cols to db %s , %s\n", values, columns)
