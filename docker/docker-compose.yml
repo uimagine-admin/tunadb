@@ -36,7 +36,7 @@ services:
       PEER_NODES: "cassandra-node2:50051,cassandra-node3:50051"
       ID: "node-1"
     ports:
-      - "50051:50051"  # Expose for external access, use 50051 internally
+      - "50051:50051" # Expose for external access, use 50051 internally
     networks:
       - cassandra-net
 
@@ -50,7 +50,7 @@ services:
       PEER_NODES: "cassandra-node1:50051,cassandra-node3:50051"
       ID: "node-2"
     ports:
-      - "50052:50051"  # External port 50052, but internally still 50051
+      - "50052:50051" # External port 50052, but internally still 50051
     networks:
       - cassandra-net
 
@@ -64,7 +64,7 @@ services:
       PEER_NODES: "cassandra-node1:50051,cassandra-node2:50051"
       ID: "node-3"
     ports:
-      - "50053:50051"  # External port 50053, but internally still 50051
+      - "50053:50051" # External port 50053, but internally still 50051
     networks:
       - cassandra-net
 
@@ -75,9 +75,9 @@ services:
     container_name: client
     environment:
       NODE_NAME: "Client"
-      PEER_ADDRESS: "cassandra-node1:50051"  # Point to node1 for initial connection
+      PEER_ADDRESS: "cassandra-node1:50051" # Point to node1 for initial connection
     ports:
-      - "50054:50051"  # Client external port 50054
+      - "50054:50051" # Client external port 50054
     networks:
       - cassandra-net
 

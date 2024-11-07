@@ -8,35 +8,34 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"os"
+	"sync"
 	"time"
 
-
 	pb "github.com/uimagine-admin/tunadb/api"
-	"github.com/uimagine-admin/tunadb/internal/types"
 	"github.com/uimagine-admin/tunadb/internal/communication"
+	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
 // Write writes a value for a given key with quorum-based consistency.
 // func (h *CoordinatorHandler)
-func (h *CoordinatorHandler) Write(ctx *context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
+func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
 	//if incoming is from node:
-	if req.NodeType=="IS_NODE"{
+	if req.NodeType == "IS_NODE" {
 
 		//TODO: write to database
 		columns := []string{"Date", "PageId", "Event", "ComponentId"}
 		values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
-		fmt.Printf("writing rows and cols to db %s , %s\n", values,columns)
+		fmt.Printf("writing rows and cols to db %s , %s\n", values, columns)
 		//write to commitlog->memtable-->SStable
 
 		return &pb.WriteResponse{
-			Ack:   true,
-			Name: os.Getenv("NODE_NAME"),
-			NodeType:"IS_NODE",
+			Ack:      true,
+			Name:     os.Getenv("NODE_NAME"),
+			NodeType: "IS_NODE",
 		}, nil
 
-	}else{
+	} else {
 		//if incoming is from client:
 		ring := h.GetRing()
 		replicas := ring.GetNodes(req.PageId)
@@ -49,11 +48,11 @@ func (h *CoordinatorHandler) Write(ctx *context.Context, req *pb.WriteRequest) (
 
 		// for each replica: i'll send an internal write request
 		for _, replica := range replicas {
-			if replica.Name == os.Getenv("NODE_NAME"){
+			if replica.Name == os.Getenv("NODE_NAME") {
 				//TODO: write to database
 				columns := []string{"Date", "PageId", "Event", "ComponentId"}
 				values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
-				fmt.Printf("writing rows and cols to db %s , %s\n", values,columns)
+				fmt.Printf("writing rows and cols to db %s , %s\n", values, columns)
 				continue
 			} //so it doesnt send to itself
 			wg.Add(1)
@@ -61,16 +60,16 @@ func (h *CoordinatorHandler) Write(ctx *context.Context, req *pb.WriteRequest) (
 				defer wg.Done()
 
 				address := fmt.Sprintf("%s:%d", replica.Name, replica.Port)
-				
+
 				ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
-				
+
 				resp, err := communication.SendWrite(&ctx_write, address, &pb.WriteRequest{
-					Date:req.Date,
-					PageId:req.PageId,
-					Event: req.Event,
-					ComponentId:req.ComponentId,
-					Name: os.Getenv("NODE_NAME"),
-					NodeType:"IS_NODE",})
+					Date:        req.Date,
+					PageId:      req.PageId,
+					Event:       req.Event,
+					ComponentId: req.ComponentId,
+					Name:        os.Getenv("NODE_NAME"),
+					NodeType:    "IS_NODE"})
 
 				if err != nil {
 					fmt.Printf("error reading from %s: %v\n", address, err)
@@ -92,9 +91,9 @@ func (h *CoordinatorHandler) Write(ctx *context.Context, req *pb.WriteRequest) (
 		// Future implementation : check who did not send acknowledgements and repair fault
 
 		return &pb.WriteResponse{
-			Ack:   true,
-			Name: os.Getenv("NODE_NAME"),
-			NodeType:"IS_NODE",
+			Ack:      true,
+			Name:     os.Getenv("NODE_NAME"),
+			NodeType: "IS_NODE",
 		}, nil
 
 	}

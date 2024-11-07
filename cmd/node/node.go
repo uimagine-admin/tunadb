@@ -11,11 +11,10 @@ import (
 	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
+	"github.com/uimagine-admin/tunadb/internal/coordinator"
 	"github.com/uimagine-admin/tunadb/internal/ring"
 	"github.com/uimagine-admin/tunadb/internal/types"
-	"github.com/uimagine-admin/tunadb/internal/coordinator"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 // server is used to implement cassandragrpc.CassandraServiceServer.
@@ -28,47 +27,35 @@ var peerAddresses = []string{
 	"cassandra-node2:50051",
 	"cassandra-node3:50051",
 }
-//port for internal communication
+
+// port for internal communication
 var portInternal = "50051"
 
 // handle incoming read request
 func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
 	log.Printf("Received read request from %s , PageId: %s ,Date: %s, columns: %s", req.Name, req.PageId, req.Date, req.Columns)
-	//call read_path
-
-	// Forward the request to node 2 use WithTransportCredentials and insecure.NewCredentials()
-	// Create a connection to the other node with secure transport credentials
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second) // Add a timeout for better error handling
-	defer cancel()
-
-	conn, err := grpc.NewClient("cassandra-node2:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	ring, err := startRing(peerAddresses)
 	if err != nil {
-		log.Fatalf("Did not connect to node 2: %v", err)
-		return nil, err
+		return &pb.ReadResponse{}, err
 	}
-	defer conn.Close()
 
-	client := pb.NewCassandraServiceClient(conn)
-	resp, err := client.Read(ctx, req)
+	var portnum, _ = strconv.ParseUint("50051", 10, 64)
+	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
+
+	c := coordinator.NewCoordinatorHandler(ring, currentNode)
+	ctx_read, _ := context.WithTimeout(context.Background(), time.Second)
+	//call read_path
+	resp, err := c.Read(ctx_read, req)
 	if err != nil {
-		log.Fatalf("Could not read from node 2: %v", err)
+		return &pb.ReadResponse{}, err
 	}
 
 	return resp, nil
 
-	// //replace below part with reply form read handler
-	// return &pb.ReadResponse{
-	// 	Date:     "3/11/2024",
-	// 	PageId:   "1",
-	// 	Columns:  req.Columns,
-	// 	Values:   []string{"click", "btn1", "1"}, //for now just retrieve a single row
-	// 	Name:     os.Getenv("NODE_NAME"),         //name of node which replied
-	// 	NodeType: "IS_NODE",
-	// }, nil
 }
 
 // handle incoming write request
-func (s *server) Write(Ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
+func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
 
 	//call write_path
 	log.Printf("Received Write request from %s : Date %s PageId %s Event %s ComponentId %s ", req.Name, req.Date, req.PageId, req.Event, req.ComponentId)
@@ -77,14 +64,17 @@ func (s *server) Write(Ctx context.Context, req *pb.WriteRequest) (*pb.WriteResp
 		return &pb.WriteResponse{}, err
 	}
 
-	var portnum,_= strconv.ParseUint("50051", 10, 64)
-	currentNode:=&types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
-	
-	c:=coordinator.NewCoordinatorHandler(ring , currentNode)
+	var portnum, _ = strconv.ParseUint("50051", 10, 64)
+	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
+
+	c := coordinator.NewCoordinatorHandler(ring, currentNode)
 	//call write_path
-	ctx, _ := context.WithTimeout(context.Background(), time.Second)
-	resp,err:=c.Write(&ctx,req)
-	
+	ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+	resp, err := c.Write(ctx_write, req)
+	if err != nil {
+		return &pb.WriteResponse{}, err
+	}
+
 	return resp, nil
 
 }
