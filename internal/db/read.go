@@ -9,8 +9,8 @@ import (
 	pb "github.com/uimagine-admin/tunadb/api"
 )
 
-func HandleRead(nodeId int, req *pb.ReadRequest) ([]Row, error) {
-	filename := fmt.Sprintf("../data/%d.json", nodeId)
+func HandleRead(nodeId string, req *pb.ReadRequest) ([]Row, error) {
+	filename := fmt.Sprintf("../data/%s.json", nodeId)
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)

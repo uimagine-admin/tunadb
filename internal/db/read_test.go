@@ -8,7 +8,7 @@ import (
 )
 
 func TestHandleRead(t *testing.T) {
-	nodeId := 0
+	nodeId := "0"
 	fmt.Println("test ", nodeId)
 
 	req := &pb.ReadRequest{

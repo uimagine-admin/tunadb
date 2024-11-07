@@ -10,6 +10,7 @@ import (
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
+	"github.com/uimagine-admin/tunadb/internal/db"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
@@ -19,6 +20,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 		// TODO: read from the database
 		fmt.Printf("simulating read from db for pageID %s\n", req.PageId)
 		// HandleRead --> return array [ {pageId: "pageID", element: "elememt", timestamp: 123423, event: "", updatedAt: "", createdAt: ""}]
+		db.HandleRead(h.GetNode().ID, req)
 
 		columns := []string{"Date", "PageId", "Event", "ComponentId"}
 		values := []string{"2021-09-01T00:00:00Z", req.PageId, "click", "component1"}
