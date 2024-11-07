@@ -18,6 +18,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 	if req.NodeType == "IS_NODE" {
 		// TODO: read from the database
 		fmt.Printf("simulating read from db for pageID %s\n", req.PageId)
+		// HandleRead --> return array [ {pageId: "pageID", element: "elememt", timestamp: 123423, event: "", updatedAt: "", createdAt: ""}]
 
 		columns := []string{"Date", "PageId", "Event", "ComponentId"}
 		values := []string{"2021-09-01T00:00:00Z", req.PageId, "click", "component1"}
@@ -47,6 +48,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			if replica.Name == os.Getenv("NODE_NAME") {
 				fmt.Printf("simulating read from db for pageID %s\n", req.PageId)
 				// TODO: read from the database
+				// HandleRead --> return array [ {pageId: "pageID", element: "elememt", timestamp: 123423, event: "", updatedAt: "", createdAt: ""}]
 				columns := []string{"Date", "PageId", "Event", "ComponentId"}
 				values := []string{"2021-09-01T00:00:00Z", req.PageId, "click", "component1"}
 				fmt.Printf("reading rows and cols from db %s , %s\n", values, columns)
