@@ -9,15 +9,6 @@ import (
 	pb "github.com/uimagine-admin/tunadb/api"
 )
 
-type Row struct {
-	PageId    string `json:"pageID"`
-	Element   string `json:"element"`
-	Timestamp string `json:"timestamp"`
-	Event     string `json:"event"`
-	UpdatedAt string `json:"updated_at"`
-	CreatedAt string `json:"created_at"`
-}
-
 func HandleRead(nodeId int, req *pb.ReadRequest) ([]Row, error) {
 	filename := fmt.Sprintf("../data/%d.json", nodeId)
 	file, err := os.Open(filename)
