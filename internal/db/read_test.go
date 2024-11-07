@@ -8,11 +8,11 @@ import (
 )
 
 func TestHandleRead(t *testing.T) {
-	nodeId := "0"
-	fmt.Println("test ", nodeId)
+	nodeId := "1"
+	fmt.Println("nodeId ", nodeId)
 
 	req := &pb.ReadRequest{
-		PageId: "page1",
+		PageId: "page2",
 	}
 
 	rows, err := HandleRead(nodeId, req)
