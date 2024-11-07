@@ -21,6 +21,6 @@ func TestHandleRead(t *testing.T) {
 	}
 
 	for _, row := range rows {
-		fmt.Printf("Event: %+v\n", row)
+		fmt.Printf("Row: %+v\n", row)
 	}
 }
