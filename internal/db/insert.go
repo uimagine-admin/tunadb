@@ -6,7 +6,7 @@ import (
 )
 
 func (h *Handler) HandleInsert(tableName string, partitionKey int64, partitionKeyValues []string, newCells []Cell) error {
-	filename := fmt.Sprintf("data/%s.json", h.Node.ID)
+	filename := fmt.Sprintf("../data/%s.json", h.Node.ID)
 	localData, err := ReadJSON(filename)
 	if err != nil {
 		return fmt.Errorf("Failed to read JSON: %v", err)

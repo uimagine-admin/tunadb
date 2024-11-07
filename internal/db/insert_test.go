@@ -27,7 +27,7 @@ func TestHandleInsert(t *testing.T) {
 	// Initialize a Handler instance
 	handler := &Handler{
 		Node: &types.Node{
-			ID: "test_node",
+			ID: "test_sample_insert",
 			// Initialize other Node fields as necessary
 		},
 	}
