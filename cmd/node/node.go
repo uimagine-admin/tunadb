@@ -69,8 +69,11 @@ func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResp
 
 	c := coordinator.NewCoordinatorHandler(ring, currentNode)
 	//call write_path
-	ctx, _ := context.WithTimeout(context.Background(), time.Second)
-	resp, err := c.Write(&ctx, req)
+	ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+	resp, err := c.Write(ctx_write, req)
+	if err != nil {
+		return &pb.WriteResponse{}, err
+	}
 
 	return resp, nil
 

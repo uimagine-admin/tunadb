@@ -10,6 +10,7 @@ import (
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
+	"github.com/uimagine-admin/tunadb/internal/replication"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
@@ -17,7 +18,7 @@ import (
 func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
 	if req.NodeType == "IS_NODE" {
 		// TODO: read from the database
-		fmt.Printf("simulating read from db for %s\n", req.PageId)
+		fmt.Printf("simulating read from db for pageID %s\n", req.PageId)
 
 		columns := []string{"Date", "PageId", "Event", "ComponentId"}
 		values := []string{"2021-09-01T00:00:00Z", req.PageId, "click", "component1"}
@@ -45,7 +46,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			wg.Add(1)
 			// if the replica is the current node, skip it
 			if replica.Name == os.Getenv("NODE_NAME") {
-				fmt.Printf("simulating read from db for %s\n", req.PageId)
+				fmt.Printf("simulating read from db for pageID %s\n", req.PageId)
 				// TODO: read from the database
 				columns := []string{"Date", "PageId", "Event", "ComponentId"}
 				values := []string{"2021-09-01T00:00:00Z", req.PageId, "click", "component1"}
@@ -84,11 +85,12 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			fmt.Printf("closing resultsChan\n")
 		}()
 
-		// // Check for quorum
-		// quorumValue, err := replication.ReceiveQuorum(ctx, resultsChan, len(replicas))
-		// if err != nil {
-		// 	return &pb.ReadResponse{}, err
-		// }
+		// Check for quorum
+		quorumValue, err := replication.ReceiveQuorum(ctx, resultsChan, len(replicas))
+		if err != nil {
+			return &pb.ReadResponse{}, err
+		}
+		fmt.Printf("quorumValue: %v\n", quorumValue)
 
 		// return the value
 		return &pb.ReadResponse{
