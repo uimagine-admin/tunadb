@@ -14,7 +14,6 @@ func main() {
 	time.Sleep(2 * time.Second)
 
 	//peer address : random node address
-	// Simulate peer communication
 	if os.Getenv("PEER_ADDRESS") != "" {
 		// sendRead(os.Getenv("PEER_ADDRESS"))
 

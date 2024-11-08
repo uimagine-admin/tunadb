@@ -44,8 +44,6 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			Rows:    rowResults,
 		}, nil
 	} else {
-
-		log.Printf("Received read request from %s , PageId: %s ,Date: %s, columns: %s\n", req.Name, req.PageId, req.Date, req.Columns)
 		ring := h.GetRing()
 		replicas := ring.GetNodes(req.PageId)
 		if len(replicas) == 0 {
@@ -60,7 +58,6 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			wg.Add(1)
 			// if the replica is the current node, skip it
 			if replica.Name == os.Getenv("NODE_NAME") {
-				log.Printf("simulating read from db for pageID %s\n", req.PageId)
 				var rowResults []*pb.RowData
 				rows, err := db.HandleRead(h.GetNode().ID, req)
 				if err != nil {
@@ -100,8 +97,6 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 					log.Printf("error reading from %s: %v\n", address, err)
 					return
 				}
-
-				log.Printf("Received read response from %s: %v\n", address, resp)
 
 				// get the reply
 				resultsChan <- resp

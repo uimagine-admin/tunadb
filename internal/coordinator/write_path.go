@@ -99,11 +99,14 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 		// After getting all acknowledgements, return the response
 		// Future implementation : check who did not send acknowledgements and repair fault
 
-		return &pb.WriteResponse{
-			Ack:      true,
-			Name:     os.Getenv("NODE_NAME"),
-			NodeType: "IS_NODE",
-		}, nil
+		select {
+		case <-resultsChan:
+			return &pb.WriteResponse{Ack: true,
+				Name:     os.Getenv("NODE_NAME"),
+				NodeType: "IS_NODE"}, nil
+		case <-time.After(5 * time.Second):
+			return &pb.WriteResponse{Ack: false, Name: os.Getenv("NODE_NAME"), NodeType: "IS_NODE"}, errors.New("timeout")
+		}
 
 	}
 }
