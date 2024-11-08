@@ -2,6 +2,7 @@ package ring
 
 import (
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 
@@ -103,7 +104,7 @@ func (chr *ConsistentHashingRing) GetNodes(key string) []types.Node {
 
 	numNodes := len(chr.uniqueNodes)
 	if numNodes < chr.numReplicas {
-		fmt.Println("WARN: Number of nodes in the ring is less than the number of replicas")
+		log.Println("WARN: Number of nodes in the ring is less than the number of replicas")
 	}
 
 	numOfNodesToReturn := min(numNodes, chr.numReplicas)

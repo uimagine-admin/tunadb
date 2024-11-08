@@ -4,33 +4,48 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
+	"github.com/uimagine-admin/tunadb/internal/db"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
 // Handles client Read request. fetches the value for a given key with quorum-based consistency.
 func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
 	if req.NodeType == "IS_NODE" {
-		// TODO: read from the database
-		fmt.Printf("simulating read from db for pageID %s\n", req.PageId)
-
+		var rowResults []*pb.RowData
+		rows, err := db.HandleRead(h.GetNode().ID, req)
+		if err != nil {
+			log.Printf("Error reading row: %s , error: %s\n", rows, err)
+			return &pb.ReadResponse{}, err
+		}
+		for i, row := range rows {
+			rowResults = append(rowResults, &pb.RowData{
+				Data: map[string]string{
+					"Date":        row.Timestamp,
+					"PageId":      row.PageId,
+					"Event":       row.Event,
+					"ComponentId": row.ComponentId,
+				},
+			})
+			log.Printf("reading row %d from db %s\n", i, row)
+		}
 		columns := []string{"Date", "PageId", "Event", "ComponentId"}
-		values := []string{"2021-09-01T00:00:00Z", req.PageId, "click", "component1"}
 
 		return &pb.ReadResponse{
-			Date:    values[0],
+			Date:    req.Date,
 			PageId:  req.PageId,
 			Columns: columns,
-			Values:  values,
+			Rows:    rowResults,
 		}, nil
 	} else {
 
-		fmt.Printf("Received read request from %s , PageId: %s ,Date: %s, columns: %s\n", req.Name, req.PageId, req.Date, req.Columns)
+		log.Printf("Received read request from %s , PageId: %s ,Date: %s, columns: %s\n", req.Name, req.PageId, req.Date, req.Columns)
 		ring := h.GetRing()
 		replicas := ring.GetNodes(req.PageId)
 		if len(replicas) == 0 {
@@ -45,11 +60,24 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			wg.Add(1)
 			// if the replica is the current node, skip it
 			if replica.Name == os.Getenv("NODE_NAME") {
-				fmt.Printf("simulating read from db for pageID %s\n", req.PageId)
-				// TODO: read from the database
-				columns := []string{"Date", "PageId", "Event", "ComponentId"}
-				values := []string{"2021-09-01T00:00:00Z", req.PageId, "click", "component1"}
-				fmt.Printf("reading rows and cols from db %s , %s\n", values, columns)
+				log.Printf("simulating read from db for pageID %s\n", req.PageId)
+				var rowResults []*pb.RowData
+				rows, err := db.HandleRead(h.GetNode().ID, req)
+				if err != nil {
+					log.Printf("Error reading row: %s , error: %s\n", rows, err)
+					return &pb.ReadResponse{}, err
+				}
+				for i, row := range rows {
+					rowResults = append(rowResults, &pb.RowData{
+						Data: map[string]string{
+							"Date":        row.Timestamp,
+							"PageId":      row.PageId,
+							"Event":       row.Event,
+							"ComponentId": row.ComponentId,
+						},
+					})
+					log.Printf("reading row %d from db %s\n", i, row)
+				}
 				continue
 			}
 
@@ -60,7 +88,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 
 				ctx_read, _ := context.WithTimeout(context.Background(), time.Second)
 				//send the read request with the key
-				_, err := communication.SendRead(&ctx_read, address, &pb.ReadRequest{
+				resp, err := communication.SendRead(&ctx_read, address, &pb.ReadRequest{
 					Date:     req.Date,
 					PageId:   req.PageId,
 					Name:     os.Getenv("NODE_NAME"),
@@ -69,19 +97,21 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 				})
 
 				if err != nil {
-					fmt.Printf("error reading from %s: %v\n", address, err)
+					log.Printf("error reading from %s: %v\n", address, err)
 					return
 				}
 
+				log.Printf("Received read response from %s: %v\n", address, resp)
+
 				// get the reply
-				// resultsChan <- resp
+				resultsChan <- resp
 			}(replica)
 		}
 
 		go func() {
 			wg.Wait()
 			close(resultsChan) // close only after all the goroutines are done
-			fmt.Printf("closing resultsChan\n")
+			log.Printf("closing resultsChan\n")
 		}()
 
 		// Check for quorum
@@ -89,16 +119,13 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 		// if err != nil {
 		// 	return &pb.ReadResponse{}, err
 		// }
-		// fmt.Printf("quorumValue: %v\n", quorumValue)
+		// log.Printf("quorumValue: %v\n", quorumValue)
 
-		// return the value
-		return &pb.ReadResponse{
-			Date:     "2021-09-01T00:00:00Z",
-			PageId:   req.PageId,
-			Columns:  []string{"event", "componentId", "count"},
-			Values:   []string{"click", "btn1", "1"}, // for now just retrieve a single row
-			Name:     os.Getenv("NODE_NAME"),         // name of node which replied
-			NodeType: "IS_NODE",
-		}, nil
+		select {
+		case quorumResponse := <-resultsChan:
+			return quorumResponse, nil
+		case <-time.After(5 * time.Second):
+			return &pb.ReadResponse{}, errors.New("timeout")
+		}
 	}
 }

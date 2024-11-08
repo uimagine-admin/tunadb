@@ -47,7 +47,7 @@ package coordinator
 // 	defer cancel()
 
 // 	val, err := handler.Read(ctx, "test_key")
-// 	fmt.Println("Received value of", val)
+// 	log.Println("Received value of", val)
 // 	if err != nil {
 // 		t.Fatalf("Error reading key: %v", err)
 // 	}

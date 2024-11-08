@@ -1,78 +1,63 @@
 package db
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"time"
+
+	pb "github.com/uimagine-admin/tunadb/api"
 )
 
-func (h *Handler) HandleInsert(tableName string, partitionKey int64, partitionKeyValues []string, newCells []Cell) error {
-	filename := fmt.Sprintf("../data/%s.json", h.Node.ID)
-	localData, err := ReadJSON(filename)
-	if err != nil {
-		return fmt.Errorf("Failed to read JSON: %v", err)
-	}
-	table := GetTable(tableName, localData)
-	if table == nil {
-		err := fmt.Sprintf("Table %s does not exist.", tableName)
-		return fmt.Errorf("Failed to insert: %s", err)
-	}
-	updatedPartition := GetPartition(table, partitionKey)
-	if updatedPartition == nil {
-		if err = createNewPartition(partitionKey, partitionKeyValues, table, newCells); err != nil {
-			return err
+func HandleInsert(nodeId string, req *pb.WriteRequest) error {
+	filename := fmt.Sprintf("./internal/data/%s.json", nodeId)
+
+	var row []Row
+
+	// Check if the file exists
+	if _, err := os.Stat(filename); err == nil {
+		// File exists, read the existing data
+		file, err := os.Open(filename)
+		if err != nil {
+			return fmt.Errorf("failed to open file: %w", err)
 		}
+		defer file.Close()
+
+		decoder := json.NewDecoder(file)
+		if err := decoder.Decode(&row); err != nil {
+			return fmt.Errorf("failed to decode JSON: %w", err)
+		}
+	} else if os.IsNotExist(err) {
+		// File does not exist, create a new list
+		row = []Row{}
 	} else {
-		if err = updatePartition(updatedPartition, newCells); err != nil {
-			return err
-		}
-	}
-	if err = PersistTable(localData, filename, table); err != nil {
-		return err
+		return fmt.Errorf("failed to check file existence: %w", err)
 	}
 
-	return nil
-}
+	// Create a new event object
+	newEvent := Row{
+		Event:       req.Event,
+		Timestamp:   time.Now().Format(time.RFC3339),
+		ComponentId: req.ComponentId,
+		PageId:      req.PageId,
+		UpdatedAt:   time.Now().Format(time.RFC3339),
+		CreatedAt:   time.Now().Format(time.RFC3339),
+	}
 
-func createNewPartition(partitionKey int64, partitionKeyValues []string, table *Table, newCells []Cell) error {
-	metadata := &Metadata{
-		PartitionKey:       partitionKey,
-		PartitionKeyValues: partitionKeyValues,
-	}
-	rows := make([]*Row, 0)
-	cells := make([]*Cell, 0)
-	for i := range newCells {
-		cell := &Cell{
-			Name:  newCells[i].Name,
-			Value: newCells[i].Value,
-		}
-		cells = append(cells, cell)
-	}
-	row := &Row{
-		CreatedAt: EpochTime(time.Now()),
-		Cells:     cells,
-	}
-	rows = append(rows, row)
-	partition := &Partition{
-		Metadata: metadata,
-		Rows:     rows,
-	}
-	table.Partitions = append(table.Partitions, partition)
-	return nil
-}
+	// Append the new event to the list
+	row = append(row, newEvent)
 
-func updatePartition(partition *Partition, newCells []Cell) error {
-	cells := make([]*Cell, 0)
-	for i := range newCells {
-		cell := &Cell{
-			Name:  newCells[i].Name,
-			Value: newCells[i].Value,
-		}
-		cells = append(cells, cell)
+	// Write the updated data back to the file
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
 	}
-	newRow := &Row{
-		CreatedAt: EpochTime(time.Now()),
-		Cells:     cells,
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	if err := encoder.Encode(row); err != nil {
+		return fmt.Errorf("failed to encode JSON: %w", err)
 	}
-	partition.Rows = append(partition.Rows, newRow)
+
 	return nil
 }

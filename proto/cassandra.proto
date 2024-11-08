@@ -26,9 +26,14 @@ message ReadResponse {
   string date = 1;
   string pageId = 2;          
   repeated string columns = 3;       
-  repeated string values = 4;      
+  repeated RowData rows = 4;      
   string name = 5; //name of node which replied
   string nodeType = 6;
+}
+
+// Represents a row of key-value data, simulating a map structure
+message RowData {
+  map<string, string> data = 1;  // Key-value pairs for each row
 }
 
 //sent by client to node (coordinator)
