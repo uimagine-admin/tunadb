@@ -26,6 +26,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 		err := db.HandleInsert(h.GetNode().ID, req)
 		if err != nil {
 			// TODO: ERROR HANDLING - @jaytaykay
+			fmt.Printf("error: %s\n", err)
 		}
 		columns := []string{"Date", "PageId", "Event", "ComponentId"}
 		values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
@@ -55,6 +56,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 				err := db.HandleInsert(h.GetNode().ID, req)
 				if err != nil {
 					// TODO: ERROR HANDLING - @jaytaykay
+					fmt.Printf("error: %s\n", err)
 				}
 				columns := []string{"Date", "PageId", "Event", "ComponentId"}
 				values := []string{req.Date, req.PageId, req.Event, req.ComponentId}

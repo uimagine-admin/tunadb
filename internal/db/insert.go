@@ -10,7 +10,7 @@ import (
 )
 
 func HandleInsert(nodeId string, req *pb.WriteRequest) error {
-	filename := fmt.Sprintf("../data/%s.json", nodeId)
+	filename := fmt.Sprintf("./internal/data/%s.json", nodeId)
 
 	var row []Row
 

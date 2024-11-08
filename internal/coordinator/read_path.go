@@ -19,7 +19,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 	if req.NodeType == "IS_NODE" {
 		fmt.Printf("simulating read from db for pageID %s\n", req.PageId)
 		row, err := db.HandleRead(h.GetNode().ID, req) // TODO: Change Rows into Columns and Values - @jaytaykay
-
+		fmt.Printf("row: %s , error: %s\n", row,err)
 		columns := []string{"Date", "PageId", "Event", "ComponentId"}
 		values := []string{"2021-09-01T00:00:00Z", req.PageId, "click", "component1"}
 
@@ -48,7 +48,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			if replica.Name == os.Getenv("NODE_NAME") {
 				fmt.Printf("simulating read from db for pageID %s\n", req.PageId)
 				row, err := db.HandleRead(h.GetNode().ID, req) // TODO: Change Rows into Columns and Values - @jaytaykay
-
+				fmt.Printf("row: %s , error: %s\n", row,err)
 				columns := []string{"Date", "PageId", "Event", "ComponentId"}
 				values := []string{"2021-09-01T00:00:00Z", req.PageId, "click", "component1"}
 				fmt.Printf("reading rows and cols from db %s , %s\n", values, columns)

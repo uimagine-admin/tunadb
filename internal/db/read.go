@@ -10,7 +10,7 @@ import (
 )
 
 func HandleRead(nodeId string, req *pb.ReadRequest) ([]Row, error) {
-	filename := fmt.Sprintf("../data/%s.json", nodeId)
+	filename := fmt.Sprintf("./internal/data/%s.json", nodeId)
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
