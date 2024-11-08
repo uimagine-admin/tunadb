@@ -18,8 +18,6 @@ func main() {
 	if os.Getenv("PEER_ADDRESS") != "" {
 		// sendRead(os.Getenv("PEER_ADDRESS"))
 
-
-
 		ctx_write, _ := context.WithTimeout(context.Background(), 5*time.Second)
 		// sendWrite(os.Getenv("PEER_ADDRESS"))
 		communication.SendWrite(&ctx_write, os.Getenv("PEER_ADDRESS"), &pb.WriteRequest{
@@ -30,14 +28,16 @@ func main() {
 			Name:        os.Getenv("NODE_NAME"),
 			NodeType:    "IS_CLIENT"})
 
+		time.Sleep(3 * time.Second)
+
 		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 		communication.SendRead(&ctx, os.Getenv("PEER_ADDRESS"), &pb.ReadRequest{
-				Date:     "3/11/2024",
-				PageId:   "1",
-				Columns:  []string{"event", "componentId", "count"},
-				Name:     os.Getenv("NODE_NAME"),
-				NodeType: "IS_CLIENT",
+			Date:     "3/11/2024",
+			PageId:   "1",
+			Columns:  []string{"event", "componentId", "count"},
+			Name:     os.Getenv("NODE_NAME"),
+			NodeType: "IS_CLIENT",
 		})
 
 		// Block forever to keep the node running

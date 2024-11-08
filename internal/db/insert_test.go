@@ -1,7 +1,7 @@
 package db
 
 import (
-	"fmt"
+	"log"
 	"testing"
 
 	pb "github.com/uimagine-admin/tunadb/api"
@@ -19,7 +19,7 @@ func TestHandleInsert(t *testing.T) {
 	if err != nil {
 		t.Errorf("HandleInsert failed for nodeId=0: %s", err)
 	} else {
-		fmt.Println("HandleInsert succeeded for nodeId=0")
+		log.Println("HandleInsert succeeded for nodeId=0")
 	}
 
 	// Define the WriteRequest for nodeId=1
@@ -34,7 +34,7 @@ func TestHandleInsert(t *testing.T) {
 	if err != nil {
 		t.Errorf("HandleInsert failed for nodeId=1: %s", err)
 	} else {
-		fmt.Println("HandleInsert succeeded for nodeId=1")
+		log.Println("HandleInsert succeeded for nodeId=1")
 	}
 
 }

@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"sync"
 	"time"
@@ -26,11 +27,11 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 		err := db.HandleInsert(h.GetNode().ID, req)
 		if err != nil {
 			// TODO: ERROR HANDLING - @jaytaykay
-			fmt.Printf("error: %s\n", err)
+			log.Printf("error: %s\n", err)
 		}
 		columns := []string{"Date", "PageId", "Event", "ComponentId"}
 		values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
-		fmt.Printf("writing rows and cols to db %s , %s\n", values, columns)
+		log.Printf("writing rows and cols to db %s , %s\n", values, columns)
 		//write to commitlog->memtable-->SStable
 
 		return &pb.WriteResponse{
@@ -56,11 +57,11 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 				err := db.HandleInsert(h.GetNode().ID, req)
 				if err != nil {
 					// TODO: ERROR HANDLING - @jaytaykay
-					fmt.Printf("error: %s\n", err)
+					log.Printf("error: %s\n", err)
 				}
 				columns := []string{"Date", "PageId", "Event", "ComponentId"}
 				values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
-				fmt.Printf("writing rows and cols to db %s , %s\n", values, columns)
+				log.Printf("writing rows and cols to db %s , %s\n", values, columns)
 				continue
 			} //so it doesnt send to itself
 			wg.Add(1)
@@ -80,7 +81,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 					NodeType:    "IS_NODE"})
 
 				if err != nil {
-					fmt.Printf("error reading from %s: %v\n", address, err)
+					log.Printf("error reading from %s: %v\n", address, err)
 					return
 				}
 

@@ -29,12 +29,15 @@ func SendRead(Ctx *context.Context, address string, req *pb.ReadRequest) (*pb.Re
 	if err != nil {
 		log.Fatalf("Could not read peer: %v", err)
 	}
-	log.Printf("Received read response . Name: %s, pageID: %s , cols:%s , values: %s \n", resp.Name, resp.PageId, resp.Columns, resp.Values)
+	log.Printf("Received read response . Name: %s, pageID: %s , cols:%s, RowData \n", resp.Name, resp.PageId, resp.Columns)
+	for i, row := range resp.Rows {
+		log.Printf("	Row %d: %v\n", i, row)
+	}
 	return resp, err
 }
 
 func SendWrite(Ctx *context.Context, address string, req *pb.WriteRequest) (*pb.WriteResponse, error) {
-	log.Printf("sending write request to %s \n",address)
+	log.Printf("sending write request to %s \n", address)
 	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("Did not connect to node: %v", err)
@@ -49,7 +52,7 @@ func SendWrite(Ctx *context.Context, address string, req *pb.WriteRequest) (*pb.
 	resp, err := client.Write(ctx, req)
 
 	if err != nil {
-		log.Fatalf("Could not send write to address %s: %v",address, err)
+		log.Fatalf("Could not send write to address %s: %v", address, err)
 	}
 	log.Printf("Received write response , Ack:  %v from %s \n", resp.Ack, resp.Name)
 	return resp, err

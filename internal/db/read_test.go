@@ -1,7 +1,7 @@
 package db
 
 import (
-	"fmt"
+	"log"
 	"testing"
 
 	pb "github.com/uimagine-admin/tunadb/api"
@@ -9,7 +9,7 @@ import (
 
 func TestHandleRead(t *testing.T) {
 	nodeId := "1"
-	fmt.Println("nodeId ", nodeId)
+	log.Println("nodeId ", nodeId)
 
 	req := &pb.ReadRequest{
 		PageId: "page2",
@@ -21,6 +21,6 @@ func TestHandleRead(t *testing.T) {
 	}
 
 	for _, row := range rows {
-		fmt.Printf("Row: %+v\n", row)
+		log.Printf("Row: %+v\n", row)
 	}
 }
