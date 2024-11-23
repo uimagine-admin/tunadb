@@ -5,6 +5,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/spaolacci/murmur3"
 	"github.com/uimagine-admin/tunadb/internal/types"
@@ -16,6 +17,7 @@ type ConsistentHashingRing struct {
 	numVirtualNodes uint64
 	numReplicas     int
 	uniqueNodes     []types.Node
+	mu    sync.RWMutex
 }
 
 // public function (constructor) - to be called outside in the main driver function
@@ -30,6 +32,9 @@ func CreateConsistentHashingRing(numVirtualNodes uint64, numReplicas int) *Consi
 
 // Public and special method: util function to print consistent hashing ring prettily
 func (ring *ConsistentHashingRing) String() string {
+	ring.mu.RLock()
+	defer ring.mu.RUnlock()
+
 	var ringDetails []string
 	for key, node := range ring.ring {
 		ringDetails = append(ringDetails, fmt.Sprintf("Key: %v, Node: %v", key, node))
@@ -56,7 +61,13 @@ func (chr *ConsistentHashingRing) calculateHash(key string) uint64 {
 }
 
 // Public Method: to add node
+// TODO - Add logic to handle Data Redistribution when a new node is added
+// This function should be called when a new node is added to the ring, when 
+// the gossip protocol detects a new node in the cluster
 func (chr *ConsistentHashingRing) AddNode(node types.Node) {
+	chr.mu.Lock()
+	defer chr.mu.Unlock()
+
 	for i := 0; i < int(chr.numVirtualNodes); i++ {
 		replicaKey := fmt.Sprintf("%s: %d", node.ID, i)
 		hashed := chr.calculateHash(replicaKey)
@@ -70,7 +81,13 @@ func (chr *ConsistentHashingRing) AddNode(node types.Node) {
 }
 
 // Public Method: Remove Node
+// TODO - Add logic to handle Data Redistribution when a node is removed
+// This function should be called when a node is removed from the ring, when
+// the gossip protocol detects a node is removed from the cluster
 func (chr *ConsistentHashingRing) DeleteNode(node types.Node) {
+	chr.mu.Lock()
+	defer chr.mu.Unlock()
+
 	for i := 0; i < int(chr.numVirtualNodes); i++ {
 		replicaKey := fmt.Sprintf("%s: %d", node.ID, i)
 		hashKey := chr.calculateHash(replicaKey)
@@ -92,6 +109,9 @@ func removeFromSlice[T comparable](slice []T, value T) []T {
 
 // Public Method: Get Nodes (returns multiple nodes for replication)
 func (chr *ConsistentHashingRing) GetNodes(key string) []types.Node {
+	chr.mu.RLock()
+	defer chr.mu.RUnlock()
+
 	if len(chr.ring) == 0 {
 		return nil
 	}
@@ -116,6 +136,7 @@ func (chr *ConsistentHashingRing) GetNodes(key string) []types.Node {
 		hashAtIdx := chr.sortedKeys[currentIdx]
 		node := chr.ring[hashAtIdx]
 
+		// check for duplicates, so a virtual node is not returned
 		if !containsNode(nodes, node) {
 			nodes = append(nodes, node)
 		}
@@ -128,6 +149,18 @@ func (chr *ConsistentHashingRing) GetNodes(key string) []types.Node {
 // util function to check if a node is already in the list
 func containsNode(nodes []types.Node, node types.Node) bool {
 	for _, n := range nodes {
+		if n.ID == node.ID {
+			return true
+		}
+	}
+	return false
+}
+
+func (chr *ConsistentHashingRing) DoesRingContainNode(node *types.Node) bool {
+	chr.mu.RLock()
+	defer chr.mu.RUnlock()
+	
+	for _, n := range chr.uniqueNodes {
 		if n.ID == node.ID {
 			return true
 		}
