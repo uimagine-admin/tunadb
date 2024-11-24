@@ -61,7 +61,9 @@ message WriteResponse {
 // Gossip message used for the gossip protocol
 message GossipMessage {
   string sender = 1;               // ID or name of the sender
-  map<string, NodeInfo> nodes = 2; // Gossip data for all nodes
+  string messageCreator = 2; 
+  string messageCreateTime = 3;
+  map<string, NodeInfo> nodes = 4; // Gossip data for all nodes
 }
 
 // Information about a node in the cluster

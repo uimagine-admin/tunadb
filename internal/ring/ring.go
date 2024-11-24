@@ -61,9 +61,6 @@ func (chr *ConsistentHashingRing) calculateHash(key string) uint64 {
 }
 
 // Public Method: to add node
-// TODO - Add logic to handle Data Redistribution when a new node is added
-// This function should be called when a new node is added to the ring, when 
-// the gossip protocol detects a new node in the cluster
 func (chr *ConsistentHashingRing) AddNode(node types.Node) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
@@ -81,9 +78,6 @@ func (chr *ConsistentHashingRing) AddNode(node types.Node) {
 }
 
 // Public Method: Remove Node
-// TODO - Add logic to handle Data Redistribution when a node is removed
-// This function should be called when a node is removed from the ring, when
-// the gossip protocol detects a node is removed from the cluster
 func (chr *ConsistentHashingRing) DeleteNode(node types.Node) {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()

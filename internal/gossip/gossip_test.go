@@ -105,7 +105,7 @@ func TestGossipProtocolIntegration(t *testing.T) {
 
 	// Step 4: Start gossip protocol for each node in separate goroutines
 	for _, handler := range gossipHandlers {
-		go handler.Start(ctx)
+		go handler.Start(ctx,2)
 	}
 
 	// Step 5: Allow gossip to propagate
@@ -119,6 +119,15 @@ func TestGossipProtocolIntegration(t *testing.T) {
 	}
 
 	// TODO step 7: verify consistent ring data across all nodes
+	for i := 0; i < numNodes; i++ {
+		// Get all nodes in the membership
+		members := gossipHandlers[i].Membership.GetAllNodes()
+		for _, member := range members {
+			log.Print("current node",gossipHandlers[i].NodeInfo.ID,", Node's Ring:",nodeRings[i].String())
+			assert.True(t, nodeRings[0].DoesRingContainNode(member), "Node[%s] Node with ID %s not found in ring", gossipHandlers[i].NodeInfo.ID, member.ID)
+		}
+	}
+
 }
 
 
@@ -175,7 +184,7 @@ func TestAddNodesToStableSystem(t *testing.T) {
 
 	// Step 4: Start gossip protocol for each node in separate goroutines
 	for _, handler := range existingGossipHandlers {
-		go handler.Start(ctx)
+		go handler.Start(ctx, 2)
 	}
 
 	// step 5: Allow gossip to propagate
@@ -190,6 +199,7 @@ func TestAddNodesToStableSystem(t *testing.T) {
 		Status: types.NodeStatusAlive,
 	}
 	newNodeRing := rp.CreateConsistentHashingRing(10, 3)
+	newNodeRing.AddNode(newNode)
 	newNodeHandler := gossip.NewGossipHandler(&newNode,newNodeRing)
 	newServer, newServerErr := StartNode(newNodeHandler)
 	if newServerErr != nil {
@@ -202,7 +212,7 @@ func TestAddNodesToStableSystem(t *testing.T) {
 	newNodeHandler.Membership.AddOrUpdateNode(randomExistingNode)
 
 	// Start gossip protocol for the new node
-	go newNodeHandler.Start(ctx)
+	go newNodeHandler.Start(ctx,2)
 
 	// Allow gossip to propagate
 	time.Sleep(15 * time.Second)
@@ -224,15 +234,17 @@ func TestAddNodesToStableSystem(t *testing.T) {
 		}
 
 		// Assert that the node with ID "Node_5" exists in the handler's membership
-		assert.True(t, found, "Node[] Node with ID %s not found in membership", newNodeID)
+		assert.True(t, found, "Node[%s] Node with ID %s not found in membership", handler.NodeInfo.ID, newNodeID)
 	}
 
-
-	// // Step 6: Verify consistent data across memberships
-	// for _, handler := range append(existingGossipHandlers, newNodeHandler) {
-	// 	members := handler.Membership.GetAllNodes()
-	// 	for _, otherHandler := range existingGossipHandlers {
-	// 		assert.Equal(t, members, otherHandler.Membership.GetAllNodes(), "Membership data inconsistency")
-	// 	}
-	// }
+	// Step 6: Verify that the new node is present in the ring, and all existing nodes are present in the new node's ring
+	existingGossipHandlers = append(existingGossipHandlers, newNodeHandler)
+	nodeRings = append(nodeRings, newNodeRing)
+	for i , existingGossipHandler := range existingGossipHandlers {
+		// Get all nodes in the membership
+		members := existingGossipHandler.Membership.GetAllNodes()
+		for _, member := range members {
+			assert.True(t, nodeRings[i].DoesRingContainNode(member), "Node[%s] Node with ID %s not found in ring", existingGossipHandlers[i].NodeInfo.ID, member.ID)
+		}
+	}
 }
