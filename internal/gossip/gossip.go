@@ -139,12 +139,20 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 		if nodeInfo.Id == g.NodeInfo.ID {
 			continue
 		}
+
+		lastUpdated, err := time.Parse(time.RFC3339, nodeInfo.LastUpdated)
+		if err != nil {
+			log.Printf("Error parsing time: %v\n", err)
+			// handle the error accordingly
+		}
+
 		updatedNode := g.Membership.AddOrUpdateNode(&types.Node{
 			IPAddress: nodeInfo.IpAddress,
 			ID:        nodeInfo.Id,
 			Port:      nodeInfo.Port,
 			Name:      nodeInfo.Name,
 			Status:    types.NodeStatus(nodeInfo.Status),
+			LastUpdated: lastUpdated,
 		})
 
 		// if node has not been seen before, add it to the consistent hashing ring
@@ -166,6 +174,15 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 		for _, node := range nodes {
 			if node.Status == types.NodeStatusAlive && node.Name != g.NodeInfo.Name {
 				aliveNodes = append(aliveNodes, node)
+			}
+
+			if node.Status == types.NodeStatusSuspect {
+				log.Printf("Node[%s] Node %s marked as suspect %v seconds ago. \n", g.NodeInfo.ID, node.Name, time.Since(node.LastUpdated).Seconds())
+				// TODO @a-nnza-r change this to a configurable value
+				if time.Since(node.LastUpdated) > 8 * time.Second {
+					g.Membership.MarkNodeDead(node.Name)
+					log.Printf("Node[%s] Marking node %s as dead\n", g.NodeInfo.ID, node.Name)
+				}
 			}
 		}
 

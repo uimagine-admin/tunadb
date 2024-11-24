@@ -109,7 +109,7 @@ func TestGossipProtocolIntegration(t *testing.T) {
 	}
 
 	// Step 5: Allow gossip to propagate
-	time.Sleep(10 * time.Second)
+	time.Sleep(6 * time.Second)
 
 	// Step 6: Verify membership consistency across all nodes
 	expectedClusterSize := len(nodes) // All nodes except the current node
@@ -133,7 +133,7 @@ func TestGossipProtocolIntegration(t *testing.T) {
 
 func TestAddNodesToStableSystem(t *testing.T) {
 	// Step 1: Initialize a stable system with 3 nodes
-	numExistingNodes := 5
+	numExistingNodes := 3
 	nodeRings := []*rp.ConsistentHashingRing{}
 	for i := 0; i < numExistingNodes; i++ {
 		nodeRings = append(nodeRings, rp.CreateConsistentHashingRing(10, 3)) // 10 virtual nodes, 3 replicas
@@ -193,9 +193,9 @@ func TestAddNodesToStableSystem(t *testing.T) {
 	// step 6: Run new node server
 	newNode := types.Node{
 		IPAddress: "localhost",
-		ID:     "Node_5",
-		Port:   uint64(9005),
-		Name:   fmt.Sprintf("localhost:%d", 9005),
+		ID:     "Node_3",
+		Port:   uint64(9003),
+		Name:   fmt.Sprintf("localhost:%d", 9003),
 		Status: types.NodeStatusAlive,
 	}
 	newNodeRing := rp.CreateConsistentHashingRing(10, 3)
@@ -215,17 +215,16 @@ func TestAddNodesToStableSystem(t *testing.T) {
 	go newNodeHandler.Start(ctx,2)
 
 	// Allow gossip to propagate
-	time.Sleep(15 * time.Second)
+	time.Sleep(6 * time.Second)
 
 
 	// Step 5: Verify that the new node are present in all handlers' memberships
-	newNodeID := "Node_5"
+	newNodeID := "Node_3"
 	for _, handler := range existingGossipHandlers {
 		members := handler.Membership.GetAllNodes()
 		found := false
 
 		for _, member := range members {
-			// log.Print(handler.NodeInfo.ID,member.ID)
 			if member.ID == newNodeID { // Check if the node ID matches "Node_5"
 				found = true
 				assert.True(t, member.IsAlive(), "New node not marked as alive")
@@ -245,6 +244,87 @@ func TestAddNodesToStableSystem(t *testing.T) {
 		members := existingGossipHandler.Membership.GetAllNodes()
 		for _, member := range members {
 			assert.True(t, nodeRings[i].DoesRingContainNode(member), "Node[%s] Node with ID %s not found in ring", existingGossipHandlers[i].NodeInfo.ID, member.ID)
+		}
+	}
+}
+
+func TestRemoveUnresponsiveNode(t *testing.T){
+	// step 1: step up a stable system with 5 nodes 
+	numExistingNodes := 4
+	nodeRings := []*rp.ConsistentHashingRing{}
+	for i := 0; i < numExistingNodes; i++ {
+		nodeRings = append(nodeRings, rp.CreateConsistentHashingRing(10, 3)) // 10 virtual nodes, 3 replicas
+	}
+	existingNodes := make([]*types.Node, numExistingNodes)
+
+	for i := 0; i < numExistingNodes; i++ {
+		node := &types.Node{
+			IPAddress: "localhost",
+			ID:     fmt.Sprintf("Node_%d", i),
+			Port:   uint64(9000 + i),
+			Name:   fmt.Sprintf("localhost:%d", 9000+i),
+			Status: types.NodeStatusAlive,
+		}
+		nodeRings[i].AddNode(*node)
+		existingNodes[i] = node
+	}
+
+	// Step 2: Set up GossipHandlers for existing nodes
+	existingGossipHandlers := make([]*gossip.GossipHandler, numExistingNodes)
+	for i, node := range existingNodes {
+		handler := gossip.NewGossipHandler(node, nodeRings[i])
+		for _, otherNode := range existingNodes {
+			if !node.Equals(otherNode) {
+				handler.Membership.AddOrUpdateNode(otherNode)
+			}
+		}
+		existingGossipHandlers[i] = handler
+	}
+
+	// Step 3: Run gRPC servers for all nodes
+	existingServers := []*grpc.Server{}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	for i, handler := range existingGossipHandlers {
+		server, err := StartNode(handler)
+		if err != nil {
+			t.Fatalf("Failed to start gRPC server for node %s: %v", existingNodes[i].Name, err)
+		}
+		existingServers = append(existingServers, server)
+	}
+	defer func() {
+		for i, server := range existingServers {
+			if i == 3 {
+				continue
+			}
+			server.Stop()
+		}
+	}()
+
+	// stop node 5: server after 6 seconds
+	go func() {
+		time.Sleep(3 * time.Second)
+		existingServers[3].Stop()
+	}()
+
+	// Step 4: Start gossip protocol for each node in separate goroutines
+	for _, handler := range existingGossipHandlers {
+		go handler.Start(ctx, 2)
+	}
+
+	// step 5: Allow gossip to propagate
+	time.Sleep(15 * time.Second)
+
+	// step 6: Verify that the unresponsive node is marked as dead in all handlers' memberships
+	for _ , handler := range existingGossipHandlers[:3] {
+		members := handler.Membership.GetAllNodes()
+		for _, member := range members {
+			if member.ID != "Node_3" {
+				assert.True(t, member.IsAlive(), "Node %s is not marked as alive", member.ID)
+			} else {
+				assert.False(t, member.IsAlive(), "Node %s is still marked as alive", member.ID)
+			}
 		}
 	}
 }

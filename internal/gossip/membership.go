@@ -41,15 +41,29 @@ func (m *Membership) AddOrUpdateNode(node *types.Node) *types.Node {
 	defer m.mu.Unlock()
 
 	existingNode, exists := m.nodes[node.Name]
-	if !exists || existingNode.Status != types.NodeStatusDead {
-		m.nodes[node.Name] = &types.Node{
-			ID:         node.ID,
-			Name:       node.Name,
-			IPAddress:  node.IPAddress,
-			Port:       node.Port,
-			Status:     node.Status,
-			LastUpdated: time.Now(),
-		}
+	incomingNode := &types.Node{
+		ID:         node.ID,
+		Name:       node.Name,
+		IPAddress:  node.IPAddress,
+		Port:       node.Port,
+		Status:     node.Status,
+		LastUpdated: node.LastUpdated,
+	}
+
+	// case 1: node is already in the membership, just updating the status and the incoming node information is newer
+	// node's time stamp should only be updated when the incoming node is alive
+	// This should resolve any node that is marked as suspect or dead
+	if exists && node.LastUpdated.After(existingNode.LastUpdated) && node.Status == types.NodeStatusAlive {
+		m.nodes[node.Name] = incomingNode
+		return m.nodes[node.Name]
+	}
+
+	// case 2: node is currently suspect or dead, and the incoming node is still dead or suspect
+	// do not update the node's time stamp, we want to keep a record of the time it was marked as suspect or dead
+
+	// case 3: node is new 
+	if !exists{
+		m.nodes[node.Name] = incomingNode
 		return m.nodes[node.Name]
 	}
 

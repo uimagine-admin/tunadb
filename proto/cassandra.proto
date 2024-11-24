@@ -64,6 +64,7 @@ message GossipMessage {
   string messageCreator = 2; 
   string messageCreateTime = 3;
   map<string, NodeInfo> nodes = 4; // Gossip data for all nodes
+  string lastUpdated = 5;
 }
 
 // Information about a node in the cluster
