@@ -1,13 +1,16 @@
 package gossip
 
 import (
+	"log"
 	"sync"
 	"time"
 
+	chr "github.com/uimagine-admin/tunadb/internal/ring"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
 type Membership struct {
+	currentNode *types.Node
 	mu    sync.RWMutex
 	nodes map[string]*types.Node
 }
@@ -18,6 +21,7 @@ func NewMembership(currentNodeInformation *types.Node) *Membership {
 	// Initialize the membership with the current node
 	m := &Membership{
 		nodes: make(map[string]*types.Node),
+		currentNode : currentNodeInformation,
 	}
 	
 	m.mu.Lock()
@@ -36,12 +40,12 @@ func NewMembership(currentNodeInformation *types.Node) *Membership {
 }
 
 // AddOrUpdateNode adds a new node or updates an existing node's information
-func (m *Membership) AddOrUpdateNode(node *types.Node) *types.Node {
+func (m *Membership) AddOrUpdateNode(node *types.Node, chr *chr.ConsistentHashingRing) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	existingNode, exists := m.nodes[node.Name]
-	incomingNode := &types.Node{
+	incomingNode := types.Node{
 		ID:         node.ID,
 		Name:       node.Name,
 		IPAddress:  node.IPAddress,
@@ -50,24 +54,67 @@ func (m *Membership) AddOrUpdateNode(node *types.Node) *types.Node {
 		LastUpdated: node.LastUpdated,
 	}
 
-	// case 1: node is already in the membership, just updating the status and the incoming node information is newer
-	// node's time stamp should only be updated when the incoming node is alive
-	// This should resolve any node that is marked as suspect or dead
-	if exists && node.LastUpdated.After(existingNode.LastUpdated) && node.Status == types.NodeStatusAlive {
-		m.nodes[node.Name] = incomingNode
-		return m.nodes[node.Name]
+	ringUpdated := false
+
+
+	// case 1: Incoming message has a more recent timestamp than the existing node
+	if exists && incomingNode.LastUpdated.After(existingNode.LastUpdated) {
+		//case 1.1 1.2: node is currently alive or suspect, and the incoming node is alive
+		if incomingNode.Status == types.NodeStatusAlive && (existingNode.Status == types.NodeStatusAlive || existingNode.Status == types.NodeStatusSuspect) {
+			m.nodes[incomingNode.Name] = &incomingNode
+			log.Printf("Node[%s] Updating node: %v\n", m.currentNode.ID, incomingNode.String())
+		}
+
+		// case 1.3: node is currently marked As Dead but the incoming node is alive
+		if incomingNode.Status == types.NodeStatusAlive && existingNode.Status == types.NodeStatusDead {
+			m.nodes[incomingNode.Name] = &incomingNode
+			ringUpdated = true
+			log.Printf("Node[%s] Updating node: %v\n", m.currentNode.ID, incomingNode.String())
+		}
+
+		// case 1.4: incoming node is marked as suspect and the existing node is alive
+		if incomingNode.Status == types.NodeStatusSuspect && existingNode.Status == types.NodeStatusAlive {
+			m.nodes[incomingNode.Name] = &incomingNode
+			log.Printf("Node[%s] Updating node: %v\n", m.currentNode.ID, incomingNode.String())
+		}
+
+		// case 1.5: incoming node is marked as suspect and the existing node is suspect
+		// Just let current node time out and set Node to Dead 
+
+		// case 1.6: incoming node is marked as suspect and the existing node is dead
+		// This should not happen,but even if it does, we can ignore it
+
+		// case 1.7: incoming node is marked as dead and the existing node is alive
+		if incomingNode.Status == types.NodeStatusDead && existingNode.Status == types.NodeStatusAlive {
+			m.nodes[incomingNode.Name] = &incomingNode
+			ringUpdated = true
+			log.Printf("Node[%s] Updating node: %v\n", m.currentNode.ID, incomingNode.String())
+		}
+
+		// case 1.8: incoming node is marked as dead and the existing node is suspect
+		// Just let the current node time out and set Node to Dead
+
+		// case 1.9: incoming node is marked as dead and the existing node is dead
+		// TODO: consider if we need to remove the node from the membership list
 	}
 
-	// case 2: node is currently suspect or dead, and the incoming node is still dead or suspect
-	// do not update the node's time stamp, we want to keep a record of the time it was marked as suspect or dead
-
-	// case 3: node is new 
+	// case 2: node is new 
 	if !exists{
-		m.nodes[node.Name] = incomingNode
-		return m.nodes[node.Name]
+		m.nodes[incomingNode.Name] = &incomingNode
+		ringUpdated = true
+		log.Printf("Node[%s] Updating node: %v\n", m.currentNode.ID, incomingNode.String())
 	}
 
-	return nil
+	// if node has not been seen before, add it to the consistent hashing ring
+	if ringUpdated == true {
+		if !chr.DoesRingContainNode(&incomingNode) {
+			log.Printf("Node[%s] Adding node: %s\n", m.currentNode.ID, incomingNode.String())
+			chr.AddNode(incomingNode)
+		} else if incomingNode.Status == types.NodeStatusDead {
+			log.Printf("Node[%s] Deleting node: %s\n", m.currentNode.ID, incomingNode.String())
+			chr.DeleteNode(incomingNode)
+		}
+	}
 }
 
 // MarkNodeSuspect marks a node as suspect if it hasn't responded within a threshold

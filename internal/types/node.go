@@ -26,7 +26,7 @@ type Node struct {
 	mu          sync.RWMutex  // Protects access to node fields
 }
 
-// String provides a formatted string representation of the Node for debugging purposes.
+//String provides a formatted string representation of the Node for debugging purposes.
 func (n *Node) String() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
@@ -52,4 +52,12 @@ func (n *Node) IsAlive() bool {
 // Equals checks if two nodes are identical by comparing their unique IDs.
 func (n *Node) Equals(other *Node) bool {
 	return n.ID == other.ID
+}
+
+
+// Test Utility Functions
+func (n *Node) IsDead() bool {
+	n.mu.RLock()
+	defer n.mu.RUnlock()
+	return n.Status == NodeStatusDead
 }
