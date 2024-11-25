@@ -12,6 +12,7 @@ import (
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
 	"github.com/uimagine-admin/tunadb/internal/db"
+	"github.com/uimagine-admin/tunadb/internal/replication"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
@@ -75,6 +76,18 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 					})
 					log.Printf("reading row %d from db %s\n", i, row)
 				}
+
+				// send to the results channel
+				resultsChan <- &pb.ReadResponse{
+					Date:    req.Date,
+					PageId:  req.PageId,
+					Columns: []string{"Date", "PageId", "Event", "ComponentId"},
+					Rows:    rowResults,
+					Name:    os.Getenv("NODE_NAME"),
+				}
+
+				log.Printf("ReadPath: current node sent to results chan\n")
+				wg.Done()
 				continue
 			}
 
@@ -99,7 +112,15 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 				}
 
 				// get the reply
-				resultsChan <- resp
+				resultsChan <- &pb.ReadResponse{
+					Name:    replica.Name,
+					Date:    resp.Date,
+					PageId:  resp.PageId,
+					Columns: resp.Columns,
+					Rows:    resp.Rows,
+				}
+
+				log.Printf("ReadPath: sent to results chan %s: %v\n", address, resp)
 			}(replica)
 		}
 
@@ -109,12 +130,12 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			log.Printf("closing resultsChan\n")
 		}()
 
-		// Check for quorum
-		// quorumValue, err := replication.ReceiveQuorum(ctx, resultsChan, len(replicas))
-		// if err != nil {
-		// 	return &pb.ReadResponse{}, err
-		// }
-		// log.Printf("quorumValue: %v\n", quorumValue)
+		// Block on responses to resultsChan to Check for quorum
+		quorumValue, err := replication.ReceiveQuorum(ctx, resultsChan, len(replicas))
+		if err != nil {
+			return &pb.ReadResponse{}, err
+		}
+		log.Printf("quorumValue: %v\n", quorumValue)
 
 		select {
 		case quorumResponse := <-resultsChan:

@@ -1,54 +1,59 @@
 package replication
 
-// import (
-// 	"context"
-// 	"errors"
+import (
+	"context"
+	"errors"
+	"log"
+	"time"
 
-// 	pb "github.com/uimagine-admin/tunadb/api"
-// )
+	pb "github.com/uimagine-admin/tunadb/api"
+)
 
-// func ReceiveQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, numReplicas int) (*pb.ReadResponse, error) {
-// 	// check for quorum
-// 	quorum := numReplicas/2 + 1
-// 	responses := make(map[string]int)
-// 	var quorumValue string
-// 	success := 0
+func ReceiveQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, numReplicas int) (*pb.ReadResponse, error) {
+	// check for quorum
+	quorum := numReplicas/2 + 1
+	// responses := make(map[string]int)
+	// var quorumValue string
+	success := 0
+	var lastResponse *pb.ReadResponse
+	var mostRecentDate time.Time
 
-// 	for {
-// 		select {
-// 		case <-ctx.Done():
-// 			return &pb.ReadResponse{}, errors.New("read quorum not reached due to timeout or cancellation")
-// 		case resp, ok := <-resultsChan:
-// 			if !ok {
-// 				if success < quorum {
-// 					return &pb.ReadResponse{}, errors.New("read quorum not reached")
-// 				}
-// 				return &pb.ReadResponse{
-// 					Date:     resp.Date,
-// 					PageId:   resp.PageId,
-// 					Columns:  resp.Columns,
-// 					Name:     resp.Name,
-// 					NodeType: resp.NodeType,
-// 					Values:   []string{quorumValue},
-// 				}, nil
-// 			}
+	for {
+		select {
+		case <-ctx.Done():
+			return &pb.ReadResponse{}, errors.New("read quorum not reached due to timeout or cancellation")
+		case resp, ok := <-resultsChan:
+			if ok {
+				log.Printf("quorum: received response from %v with date %v \n", resp.Name, resp.Date)
+				success++
 
-// 			// extract value for quorum check
-// 			val := resp.Values[0] // TODO change if we have more than one column
-// 			responses[val]++
-// 			success++
+				respDate, err := time.Parse("2006-01-02", resp.Date)
+				if err != nil {
+					log.Printf("Error parsing date from %s: %v", resp.Name, err)
+					continue
+				}
 
-// 			if responses[val] >= quorum {
-// 				quorumValue = val
-// 				return &pb.ReadResponse{
-// 					Date:     resp.Date,
-// 					PageId:   resp.PageId,
-// 					Columns:  resp.Columns,
-// 					Name:     resp.Name,
-// 					NodeType: resp.NodeType,
-// 					Values:   []string{quorumValue},
-// 				}, nil
-// 			}
-// 		}
-// 	}
-// }
+				if lastResponse == nil || respDate.After(mostRecentDate) {
+					lastResponse = resp
+					mostRecentDate = respDate
+				}
+
+				if success >= quorum {
+					log.Printf("quorum: quorum reached with %d responses \n", success)
+					return lastResponse, nil
+				}
+			} else {
+				// if channel is closed since all replicas have sent their results, return error if quorum not reached
+				if success < quorum {
+					return nil, errors.New("read quorum not reached")
+				}
+
+				log.Printf("quorum: quorum reached with %d responses \n", success)
+				if lastResponse == nil {
+					return nil, errors.New("no response received")
+				}
+				return lastResponse, nil
+			}
+		}
+	}
+}
