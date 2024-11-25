@@ -137,11 +137,6 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 		}
 		log.Printf("quorumValue: %v\n", quorumValue)
 
-		select {
-		case quorumResponse := <-resultsChan:
-			return quorumResponse, nil
-		case <-time.After(5 * time.Second):
-			return &pb.ReadResponse{}, errors.New("timeout")
-		}
+		return quorumValue, nil
 	}
 }

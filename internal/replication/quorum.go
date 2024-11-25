@@ -12,8 +12,6 @@ import (
 func ReceiveQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, numReplicas int) (*pb.ReadResponse, error) {
 	// check for quorum
 	quorum := numReplicas/2 + 1
-	// responses := make(map[string]int)
-	// var quorumValue string
 	success := 0
 	var lastResponse *pb.ReadResponse
 	var mostRecentDate time.Time
@@ -21,7 +19,7 @@ func ReceiveQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, numRe
 	for {
 		select {
 		case <-ctx.Done():
-			return &pb.ReadResponse{}, errors.New("read quorum not reached due to timeout or cancellation")
+			return nil, errors.New("read quorum not reached due to timeout or cancellation")
 		case resp, ok := <-resultsChan:
 			if ok {
 				log.Printf("quorum: received response from %v with date %v \n", resp.Name, resp.Date)
