@@ -21,22 +21,30 @@ type GossipHandler struct {
 	chr            *chr.ConsistentHashingRing
 	seenMessages   map[string]bool // Tracks seen messages to avoid duplicate processing
 	seenMessagesMu sync.Mutex     // Mutex for concurrent access to seenMessages
+
 	gossipFanOut int
+	deadNodeTimeout int // Timeout for marking a node as dead in seconds after being marked as suspect
+	gossipInterval int // Interval for gossiping in seconds
 }
 
 // NewGossipHandler initializes a new GossipHandler for the current node.
-func NewGossipHandler(currentNode *types.Node, chr *chr.ConsistentHashingRing, gossipFanOut int) *GossipHandler {
+func NewGossipHandler(currentNode *types.Node, chr *chr.ConsistentHashingRing, gossipFanOut int, deadNodeTimeout int, gossipInterval int) *GossipHandler {
+	if gossipFanOut <= 1 {
+		log.Fatalf("Invalid gossip fan out: %d, MUST CHOSE A VALUE OF AT LEAST 2. \n", gossipFanOut)
+	}
 	return &GossipHandler{
 		NodeInfo:     currentNode,
 		Membership:   NewMembership(currentNode),
 		chr:          chr,
 		seenMessages: make(map[string]bool),
 		gossipFanOut: gossipFanOut,
+		deadNodeTimeout: deadNodeTimeout,
+		gossipInterval: gossipInterval,
 	}
 }
 
 func (g *GossipHandler) Start(ctx context.Context, gossipFanOut int) {
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(time.Duration(g.gossipInterval) * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -176,14 +184,14 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 		nodes := g.Membership.GetAllNodes()
 		aliveNodes := []*types.Node{}
 		for _, node := range nodes {
-			if node.Status == types.NodeStatusAlive && node.Name != g.NodeInfo.Name {
+			if ( node.Status == types.NodeStatusAlive || node.Status == types.NodeStatusSuspect ) && node.Name != g.NodeInfo.Name {
 				aliveNodes = append(aliveNodes, node)
 			}
 			
 			if node.Status == types.NodeStatusSuspect && node.Name != g.NodeInfo.Name {
 				log.Printf("Node[%s] Node %s marked as suspect %v seconds ago.[%v] \n", g.NodeInfo.ID, node.Name, time.Since(node.LastUpdated).Seconds(), node.LastUpdated )
 				// TODO @a-nnza-r change this to a configurable value
-				if time.Since(node.LastUpdated) > 8 * time.Second {
+				if time.Since(node.LastUpdated) > (time.Duration(g.deadNodeTimeout) * time.Second) {
 					g.Membership.MarkNodeDead(node.Name)
 					log.Printf("Node[%s] Marking node %s as dead\n", g.NodeInfo.ID, node.Name)
 				}
@@ -222,7 +230,7 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 				printPropagatedGossipMessage(req)
 				err := communication.SendGossipMessage(&ctx, address, req)
 				if err != nil {
-					// log.Printf("Node[%s] Error propagating gossip to node %s with %d; %v\n", g.NodeInfo.ID ,targetNode.Name, err, i)
+					log.Printf("Node[%s] Error propagating gossip to node %s with %d; %v\n", g.NodeInfo.ID ,targetNode.Name, err, i)
 				} else {
 					// log.Printf("Node[%s] Propagated gossip to node %s\n", g.NodeInfo.ID, targetNode.Name)
 				}
@@ -238,7 +246,7 @@ func printReceivedGossipMessage(receiver string,req *pb.GossipMessage){
 	for id, node := range req.Nodes {
 		nodesStr += "["  + id + " " + node.Name + " " + node.Status + " " + node.LastUpdated + "] \n"
 	}
-	log.Printf("[%s] RECEIVED \nSender: %s, \nMessageCreator: %s, \nMessageCreateTime: %s, \nNodes: \n%s", receiver , req.Sender, req.MessageCreator, req.MessageCreateTime, nodesStr)
+	log.Printf("[%s] RECEIVED \nSender: %s, \nMessageCreator: %s, \nMessageCreateTime: %s, \nNodes: \n%s \n \n \n", receiver , req.Sender, req.MessageCreator, req.MessageCreateTime, nodesStr)
 }
 
 func printPropagatedGossipMessage(req *pb.GossipMessage){
@@ -246,5 +254,5 @@ func printPropagatedGossipMessage(req *pb.GossipMessage){
 	for id, node := range req.Nodes {
 		nodesStr += "["  + id + " " + node.Name + " " + node.Status + " " + node.LastUpdated + "] \n"
 	}
-	log.Printf("[%s] FORWARDING \nSender: %s, \nMessageCreator: %s, \nMessageCreateTime: %s, \nNodes: \n%s",req.Sender, req.Sender, req.MessageCreator, req.MessageCreateTime, nodesStr)
+	log.Printf("[%s] FORWARDING \nSender: %s, \nMessageCreator: %s, \nMessageCreateTime: %s, \nNodes: \n%s \n \n \n",req.Sender, req.Sender, req.MessageCreator, req.MessageCreateTime, nodesStr)
 }

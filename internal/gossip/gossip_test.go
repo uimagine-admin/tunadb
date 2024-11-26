@@ -57,7 +57,7 @@ func StartNode(handler *gossip.GossipHandler) (*grpc.Server, error) {
  replicationFactor: Number of replicas for each node
  numberOfVirtualNodes: Number of virtual nodes for each node
 */
-func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationFactor int, gossipFanOut int) ([]*types.Node,[]*gossip.GossipHandler, []*grpc.Server, []*rp.ConsistentHashingRing, []*context.Context, []*context.CancelFunc) {
+func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationFactor int, gossipFanOut int, suspectToDeadTimeout int, gossipInterval int) ([]*types.Node,[]*gossip.GossipHandler, []*grpc.Server, []*rp.ConsistentHashingRing, []*context.Context, []*context.CancelFunc) {
 	// Step 1: Initialize the cluster with a consistent hashing ring
 	nodeRings := []*rp.ConsistentHashingRing{}
 	for i := 0; i < numNodes; i++ {
@@ -83,7 +83,7 @@ func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationF
 	// Step 2: Start gossip handlers for all nodes
 	gossipHandlers := make([]*gossip.GossipHandler, numNodes)
 	for i, node := range nodes {
-		gossipHandlers[i] = gossip.NewGossipHandler(node, nodeRings[i], gossipFanOut)
+		gossipHandlers[i] = gossip.NewGossipHandler(node, nodeRings[i], gossipFanOut, suspectToDeadTimeout,gossipInterval)
 
 		// Add all nodes to the membership list
 		for _, otherNode := range nodes {
@@ -137,8 +137,10 @@ func TestGossipProtocolIntegration(t *testing.T) {
 	numVirtualNodes := uint64(3)
 	replicationFactor := 2
 	gossipFanOut := 2
+	suspectToDeadTimeout := 8
+	gossipInterval := 3
 
-	nodes, gossipHandlers, servers, nodeRings, _, cancelContexts := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut)
+	nodes, gossipHandlers, servers, nodeRings, _, cancelContexts := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut, suspectToDeadTimeout,gossipInterval)
 
 	defer log.Println("TestGossipProtocolIntegration completed")
 	defer stopServers(servers, cancelContexts)
@@ -170,8 +172,10 @@ func TestAddNodesToStableSystem(t *testing.T) {
 	numVirtualNodes := uint64(3)
 	replicationFactor := 2
 	gossipFanOut := 2
+	suspectToDeadTimeout := 8
+	gossipInterval := 3
 	
-	existingNodes, existingGossipHandlers, servers, nodeRings, _, cancelContext := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut)
+	existingNodes, existingGossipHandlers, servers, nodeRings, _, cancelContext := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut,suspectToDeadTimeout,gossipInterval)
 
 	defer log.Println("TestGossipProtocolIntegration completed")
 	defer stopServers(servers, cancelContext)
@@ -188,7 +192,7 @@ func TestAddNodesToStableSystem(t *testing.T) {
 	}
 	newNodeRing := rp.CreateConsistentHashingRing(10, 3)
 	newNodeRing.AddNode(newNode)
-	newNodeHandler := gossip.NewGossipHandler(&newNode,newNodeRing,gossipFanOut)
+	newNodeHandler := gossip.NewGossipHandler(&newNode,newNodeRing,gossipFanOut,suspectToDeadTimeout, gossipInterval)
 	newServer, newServerErr := StartNode(newNodeHandler)
 	if newServerErr != nil {
 		t.Fatalf("Failed to start gRPC server for node %s: %v",newNode.Name, newServerErr)
@@ -245,8 +249,10 @@ func TestRemoveUnresponsiveNode(t *testing.T){
 	numVirtualNodes := uint64(3)
 	replicationFactor := 2
 	gossipFanOut := 2
+	suspectToDeadTimeout := 5
+	gossipInterval := 3
 	
-	_, existingGossipHandlers, existingServers, nodeRings, _ , cancelContexts := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut)
+	_, existingGossipHandlers, existingServers, nodeRings, _ , cancelContexts := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut, suspectToDeadTimeout,gossipInterval)
 
 	defer log.Println("TestGossipProtocolIntegration completed")
 	defer stopServers(existingServers, cancelContexts)
@@ -286,8 +292,10 @@ func TestDeadNodeRecovery(t *testing.T) {
     numVirtualNodes := uint64(1)
     replicationFactor := 2
     gossipFanOut := 2
+	suspectToDeadTimeout := 5
+	gossipInterval := 3
 
-    nodes, gossipHandlers, servers, _, _, cancelContexts := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut)
+    nodes, gossipHandlers, servers, _, _, cancelContexts := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut, suspectToDeadTimeout,gossipInterval)
 
     // Step 2: Simulate a node failure
     failedNodeIndex := 3
