@@ -77,16 +77,20 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 					log.Printf("reading row %d from db %s\n", i, row)
 				}
 
-				// send to the results channel
-				resultsChan <- &pb.ReadResponse{
-					Date:    req.Date,
-					PageId:  req.PageId,
-					Columns: []string{"Date", "PageId", "Event", "ComponentId"},
-					Rows:    rowResults,
-					Name:    os.Getenv("NODE_NAME"),
-				}
+				if len(rowResults) > 0 {
+					// send to the results channel
+					resultsChan <- &pb.ReadResponse{
+						Date:    req.Date,
+						PageId:  req.PageId,
+						Columns: []string{"Date", "PageId", "Event", "ComponentId"},
+						Rows:    rowResults,
+						Name:    os.Getenv("NODE_NAME"),
+					}
 
-				log.Printf("ReadPath: current node sent to results chan\n")
+					log.Printf("ReadPath: current node sent to results chan\n")
+				} else {
+					log.Printf("ReadPath: no rows found in %v\n", os.Getenv("NODE_NAME"))
+				}
 				wg.Done()
 				continue
 			}

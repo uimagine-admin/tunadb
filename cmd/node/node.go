@@ -79,6 +79,34 @@ func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResp
 
 }
 
+// handle delete requests
+func (s *server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteResponse, error) {
+	log.Printf("Received delete request: Date %s PageId %s Event %s ComponentId %s ", req.Date, req.PageId, req.Event, req.ComponentId)
+	ring, err := startRing(peerAddresses)
+	if err != nil {
+		return &pb.DeleteResponse{
+			Success: false,
+			Message: "Failed to start ring",
+		}, err
+	}
+
+	var portnum, _ = strconv.ParseUint("50051", 10, 64)
+	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
+
+	c := coordinator.NewCoordinatorHandler(ring, currentNode)
+	//call delete_path
+	ctx_delete, _ := context.WithTimeout(context.Background(), time.Second)
+	resp, err := c.Delete(ctx_delete, req)
+	if err != nil {
+		return &pb.DeleteResponse{
+			Success: false,
+			Message: err.Error(),
+		}, err
+	}
+
+	return resp, nil
+}
+
 func main() {
 	// Hardcoded addresses for nodes
 	// nodeAddress := os.Getenv("NODE_ADDRESS")

@@ -29,6 +29,16 @@ func main() {
 
 		time.Sleep(3 * time.Second)
 
+		ctx_delete, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		communication.SendDelete(&ctx_delete, os.Getenv("PEER_ADDRESS"), &pb.DeleteRequest{
+			Date:        "",
+			PageId:      "1",
+			Event:       "",
+			ComponentId: "btn1",
+		})
+
+		time.Sleep(3 * time.Second)
+
 		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 		communication.SendRead(&ctx, os.Getenv("PEER_ADDRESS"), &pb.ReadRequest{
