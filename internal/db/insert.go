@@ -37,7 +37,7 @@ func HandleInsert(nodeId string, req *pb.WriteRequest) error {
 	// Create a new event object
 	newEvent := Row{
 		Event:       req.Event,
-		Timestamp:   time.Now().Format(time.RFC3339),
+		Timestamp:   req.Date,
 		ComponentId: req.ComponentId,
 		PageId:      req.PageId,
 		UpdatedAt:   time.Now().Format(time.RFC3339),

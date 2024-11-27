@@ -98,6 +98,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			go func(replica types.Node) {
 				defer wg.Done()
 
+				// TODO replica.Name should be replaced with replica.Address
 				address := fmt.Sprintf("%s:%d", replica.Name, replica.Port)
 
 				ctx_read, _ := context.WithTimeout(context.Background(), time.Second)
