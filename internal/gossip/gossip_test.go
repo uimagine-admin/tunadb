@@ -69,10 +69,10 @@ func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationF
 	nodes := make([]*types.Node, numNodes)
 	for i := 0; i < numNodes; i++ {
 		node := &types.Node{
-			IPAddress: "localhost",
-			ID:     fmt.Sprintf("Node_%d", i),
+			IPAddress: fmt.Sprintf("localhost:900%d", i),
+			ID:     fmt.Sprintf("node_%d", i),
 			Port:   uint64(9000 + i),
-			Name:   fmt.Sprintf("localhost:%d", 9000+i),
+			Name:   fmt.Sprintf("cassandra-node%d", i),
 			Status: types.NodeStatusAlive,
 			LastUpdated: time.Now(),
 		}
@@ -159,7 +159,6 @@ func TestGossipProtocolIntegration(t *testing.T) {
 		// Get all nodes in the membership
 		members := gossipHandlers[i].Membership.GetAllNodes()
 		for _, member := range members {
-			log.Print("current node ",gossipHandlers[i].NodeInfo.ID,", Node's Ring:",nodeRings[i].String())
 			assert.True(t, nodeRings[0].DoesRingContainNode(member), "Node[%s] Node with ID %s not found in ring", gossipHandlers[i].NodeInfo.ID, member.ID)
 		}
 	}
@@ -184,7 +183,7 @@ func TestAddNodesToStableSystem(t *testing.T) {
 
 	// step 6: Run new node server
 	newNode := types.Node{
-		IPAddress: "localhost",
+		IPAddress: "localhost:9003",
 		ID:     "Node_3",
 		Port:   uint64(9003),
 		Name:   fmt.Sprintf("localhost:%d", 9003),
@@ -269,7 +268,7 @@ func TestRemoveUnresponsiveNode(t *testing.T){
 	for _ , handler := range existingGossipHandlers[:nodeToRemoveIndex] {
 		members := handler.Membership.GetAllNodes()
 		for _, member := range members {
-			if member.ID != fmt.Sprintf("Node_%d", nodeToRemoveIndex) {
+			if member.ID != fmt.Sprintf("node_%d", nodeToRemoveIndex) {
 				assert.True(t, member.IsAlive(), "Node %s is not marked as alive.", member.ID)
 			} else {
 				assert.True(t, member.IsDead(), "Node %s is not marked as Dead.", member.ID)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"math/rand"
-	"strconv"
 	"sync"
 	"time"
 
@@ -65,7 +64,7 @@ func (g *GossipHandler) gossip(ctx context.Context, gossipFanOut int) {
 	aliveNodes := []*types.Node{}
 
 	for _, node := range nodes {
-		if node.Status == types.NodeStatusAlive && node.Name != g.NodeInfo.Name {
+		if node.Status != types.NodeStatusDead && node.Name != g.NodeInfo.Name {
 			aliveNodes = append(aliveNodes, node)
 		}
 	}
@@ -89,7 +88,7 @@ func (g *GossipHandler) gossip(ctx context.Context, gossipFanOut int) {
 		message := g.createGossipMessage()
 
 		// Send gossip message to the target node
-		address := targetNode.IPAddress + ":" + strconv.FormatUint(targetNode.Port, 10)
+		address := targetNode.IPAddress
 
 		err := communication.SendGossipMessage(&ctx, address, message)
 		if err != nil {
@@ -202,7 +201,7 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 			targetNodeIndices := rand.Perm(len(aliveNodes))
 			for i := 0; i < g.gossipFanOut && i < len(aliveNodes); i++ {
 				targetNode := aliveNodes[targetNodeIndices[i]]
-				address := targetNode.IPAddress + ":" + strconv.FormatUint(targetNode.Port, 10)
+				address := targetNode.IPAddress
 				// update the message with the current node's membership view
 				req.Sender = g.NodeInfo.Name
 				req.Nodes = make(map[string]*pb.NodeInfo)
