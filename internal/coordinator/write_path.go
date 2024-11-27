@@ -16,6 +16,7 @@ import (
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
 	"github.com/uimagine-admin/tunadb/internal/db"
+	"github.com/uimagine-admin/tunadb/internal/replication"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
@@ -56,12 +57,20 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 			if replica.Name == os.Getenv("NODE_NAME") {
 				err := db.HandleInsert(h.GetNode().ID, req)
 				if err != nil {
-					// TODO: ERROR HANDLING - @jaytaykay
 					log.Printf("error: %s\n", err)
 				}
 				columns := []string{"Date", "PageId", "Event", "ComponentId"}
 				values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
 				log.Printf("writing rows and cols to db %s , %s\n", values, columns)
+
+				resultsChan <- &pb.WriteResponse{
+					Ack:      true,
+					Name:     os.Getenv("NODE_NAME"),
+					NodeType: "IS_NODE",
+				}
+
+				log.Printf("WritePath: current node sent ack to results chan\n")
+
 				continue
 			} //so it doesnt send to itself
 			wg.Add(1)
@@ -98,15 +107,21 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 
 		// After getting all acknowledgements, return the response
 		// Future implementation : check who did not send acknowledgements and repair fault
-
-		select {
-		case <-resultsChan:
-			return &pb.WriteResponse{Ack: true,
-				Name:     os.Getenv("NODE_NAME"),
-				NodeType: "IS_NODE"}, nil
-		case <-time.After(5 * time.Second):
-			return &pb.WriteResponse{Ack: false, Name: os.Getenv("NODE_NAME"), NodeType: "IS_NODE"}, errors.New("timeout")
+		quorumValue, err := replication.ReceiveWriteQuorum(ctx, resultsChan, len(replicas))
+		if err != nil {
+			return &pb.WriteResponse{Ack: false, Name: os.Getenv("NODE_NAME"), NodeType: "IS_NODE"}, err
 		}
+		log.Printf("quorum: quorum reached with %v responses \n", quorumValue)
+		return &pb.WriteResponse{Ack: true, Name: os.Getenv("NODE_NAME"), NodeType: "IS_NODE"}, nil
+
+		// select {
+		// case <-resultsChan:
+		// 	return &pb.WriteResponse{Ack: true,
+		// 		Name:     os.Getenv("NODE_NAME"),
+		// 		NodeType: "IS_NODE"}, nil
+		// case <-time.After(5 * time.Second):
+		// 	return &pb.WriteResponse{Ack: false, Name: os.Getenv("NODE_NAME"), NodeType: "IS_NODE"}, errors.New("timeout")
+		// }
 
 	}
 }

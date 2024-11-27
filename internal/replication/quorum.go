@@ -3,13 +3,15 @@ package replication
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"os"
 	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 )
 
-func ReceiveQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, numReplicas int) (*pb.ReadResponse, error) {
+func ReceiveReadQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, numReplicas int) (*pb.ReadResponse, error) {
 	// check for quorum
 	quorum := numReplicas/2 + 1
 	success := 0
@@ -51,6 +53,50 @@ func ReceiveQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, numRe
 					return nil, errors.New("no response received")
 				}
 				return lastResponse, nil
+			}
+		}
+	}
+}
+
+func ReceiveWriteQuorum(ctx context.Context, resultsChan chan *pb.WriteResponse, numReplicas int) (*pb.WriteResponse, error) {
+	// check for quorum
+	quorum := numReplicas/2 + 1
+	success := 0
+	numReplies := 0
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, errors.New("write quorum not reached due to timeout or cancellation")
+		case resp, ok := <-resultsChan:
+			if ok {
+				numReplies++
+				log.Printf("quorum: received %v response from %v \n", resp.Ack, resp.Name)
+				if resp.Ack {
+					success++
+				}
+
+				if success >= quorum {
+					log.Printf("quorum: quorum reached with %d Acks out of %d responses \n", success, numReplies)
+					return &pb.WriteResponse{
+						Ack:      true,
+						Name:     os.Getenv("NODE_NAME"),
+						NodeType: "IS_NODE",
+					}, nil
+				}
+			} else {
+				// if channel is closed since all replicas have sent their results, return error if quorum not reached
+				if success < quorum {
+					return nil, errors.New(fmt.Sprintf("write quorum not reached: Only got Acks from %d out of %d replicas", numReplies, numReplicas))
+				}
+
+				log.Printf("quorum: quorum reached with %d Acks out of %d responses \n", success, numReplies)
+
+				return &pb.WriteResponse{
+					Ack:      true,
+					Name:     os.Getenv("NODE_NAME"),
+					NodeType: "IS_NODE",
+				}, nil
 			}
 		}
 	}

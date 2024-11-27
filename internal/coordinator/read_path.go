@@ -131,7 +131,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 		}()
 
 		// Block on responses to resultsChan to Check for quorum
-		quorumValue, err := replication.ReceiveQuorum(ctx, resultsChan, len(replicas))
+		quorumValue, err := replication.ReceiveReadQuorum(ctx, resultsChan, len(replicas))
 		if err != nil {
 			return &pb.ReadResponse{}, err
 		}
