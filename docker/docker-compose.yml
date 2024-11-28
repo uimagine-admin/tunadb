@@ -50,7 +50,7 @@ services:
       NODE_NAME: "cassandra-node2"
       PEER_NODES: "cassandra-node1:50051,cassandra-node3:50051,cassandra-node4:50051"
       ID: "node-2"
-      INTERNAL_PORT: "50051"
+      INTERNAL_PORT: "50051" # Internal port
     ports:
       - "50052:50051" # External port 50052, but internally still 50051
     networks:
