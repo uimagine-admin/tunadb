@@ -7,6 +7,9 @@ option go_package = "/api";
 service CassandraService {
   rpc Read (ReadRequest) returns (ReadResponse) {}
   rpc Write (WriteRequest) returns (WriteResponse) {}
+
+  // Define Gossip RPC
+  rpc Gossip (GossipMessage) returns (GossipAck) {}
   rpc Delete (DeleteRequest) returns (DeleteResponse) {}
 }
 
@@ -54,6 +57,31 @@ message WriteResponse {
   string name = 2;
   string nodeType = 3;                      
 }
+
+// Gossip message used for the gossip protocol
+message GossipMessage {
+  string sender = 1;               // ID or name of the sender
+  string messageCreator = 2; 
+  string messageCreateTime = 3;
+  map<string, NodeInfo> nodes = 4; // Gossip data for all nodes
+  string lastUpdated = 5;
+}
+
+// Information about a node in the cluster
+message NodeInfo {
+  string ipAddress = 1;
+  string id = 2; 
+  uint64 port = 3;
+  string name = 4;
+  string status = 5; // Can be alive, suspect, or dead
+  string lastUpdated = 6; 
+}
+
+// Acknowledgement for the gossip message
+message GossipAck {
+  bool ack = 1;
+}
+
 
 //sent by client to node (coordinator)
 // also sent from node (coordinator) to nodes
