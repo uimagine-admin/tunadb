@@ -40,8 +40,8 @@ func HandleInsert(nodeId string, req *pb.WriteRequest) error {
 		Timestamp:   req.Date,
 		ComponentId: req.ComponentId,
 		PageId:      req.PageId,
-		UpdatedAt:   time.Now().Format(time.RFC3339),
-		CreatedAt:   time.Now().Format(time.RFC3339),
+		UpdatedAt:   time.Now().Format(time.RFC3339Nano),
+		CreatedAt:   time.Now().Format(time.RFC3339Nano),
 	}
 
 	// Append the new event to the list

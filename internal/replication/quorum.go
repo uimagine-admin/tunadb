@@ -30,7 +30,7 @@ func ReceiveReadQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, n
 				// store the response in the array of responses
 				receivedResponses = append(receivedResponses, resp)
 
-				respDate, err := time.Parse(time.RFC3339, resp.Date)
+				respDate, err := time.Parse(time.RFC3339Nano, resp.Date)
 				if err != nil {
 					log.Printf("Error parsing date from %s: %v", resp.Name, err)
 					continue

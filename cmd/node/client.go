@@ -20,7 +20,7 @@ func main() {
 		ctx_write, _ := context.WithTimeout(context.Background(), 5*time.Second)
 		// sendWrite(os.Getenv("PEER_ADDRESS"))
 		communication.SendWrite(&ctx_write, os.Getenv("PEER_ADDRESS"), &pb.WriteRequest{
-			Date:        "2024-11-27T10:00:40Z",
+			Date:        "2024-11-27T10:00:40.999999999Z",
 			PageId:      "1",
 			Event:       "click",
 			ComponentId: "btn1",
@@ -42,7 +42,7 @@ func main() {
 		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 		communication.SendRead(&ctx, os.Getenv("PEER_ADDRESS"), &pb.ReadRequest{
-			Date:     "2024-11-27T10:00:40Z",
+			Date:     "2024-11-27T10:00:40.999999999Z",
 			PageId:   "1",
 			Columns:  []string{"event", "componentId", "count"},
 			Name:     os.Getenv("NODE_NAME"),
