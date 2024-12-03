@@ -12,6 +12,7 @@ type Handler interface {
 	GetRing() ring.ConsistentHashingRing
 	Read(ctx context.Context, key string) (string, error)
 	Write(ctx context.Context, key, value string) error
+	Delete(ctx context.Context, key string) error
 }
 
 type CoordinatorHandler struct {

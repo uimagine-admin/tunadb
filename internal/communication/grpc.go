@@ -75,7 +75,7 @@ func CheckWriteIsFromNode(req *pb.WriteRequest) bool {
 
 // sendGossipMessage sends a gossip message to a target node using gRPC.
 func SendGossipMessage(Ctx *context.Context, address string, req *pb.GossipMessage) error {
-	//test 
+	//test
 	log.Printf("sending gossip message to %s \n", address)
 	conn, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
@@ -89,4 +89,26 @@ func SendGossipMessage(Ctx *context.Context, address string, req *pb.GossipMessa
 
 	_, err = client.Gossip(ctx, req)
 	return err
+}
+
+func SendDelete(Ctx *context.Context, address string, req *pb.DeleteRequest) (*pb.DeleteResponse, error) {
+	log.Printf("sending delete request to %s \n", address)
+	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		log.Fatalf("Did not connect to node: %v", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewCassandraServiceClient(conn)
+	//additional configuration can pass in as param
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	resp, err := client.Delete(ctx, req)
+
+	if err != nil {
+		log.Fatalf("Could not send write to address %s: %v", address, err)
+	}
+	log.Printf("Received delete response , Ack:  %v, Message: %v from %s \n", resp.Success, resp.Message, resp.Name)
+	return resp, err
 }
