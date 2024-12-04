@@ -5,12 +5,12 @@ package cassandragrpc;
 option go_package = "/api";
 
 service CassandraService {
-  
   rpc Read (ReadRequest) returns (ReadResponse) {}
   rpc Write (WriteRequest) returns (WriteResponse) {}
 
   // Define Gossip RPC
   rpc Gossip (GossipMessage) returns (GossipAck) {}
+  rpc Delete (DeleteRequest) returns (DeleteResponse) {}
 }
 
 //sent by client to node (coordinator)
@@ -80,4 +80,21 @@ message NodeInfo {
 // Acknowledgement for the gossip message
 message GossipAck {
   bool ack = 1;
+}
+
+
+//sent by client to node (coordinator)
+// also sent from node (coordinator) to nodes
+message DeleteRequest {
+  string pageId = 1;
+  string componentId = 2;
+  string event = 3;
+  string date = 4;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string name = 2;
+  string nodeType = 3;     
+  string message = 4; //error message if any                 
 }
