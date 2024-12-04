@@ -15,6 +15,8 @@ const (
 	NodeStatusDead    NodeStatus = "DEAD"
 )
 
+
+
 // Node represents a single node in the distributed system.
 type Node struct {
 	IPAddress   string
@@ -25,6 +27,8 @@ type Node struct {
 	LastUpdated time.Time     // Timestamp of the last update from this node
 	mu          sync.RWMutex  // Protects access to node fields
 }
+
+
 
 //String provides a formatted string representation of the Node for debugging purposes.
 func (n *Node) String() string {

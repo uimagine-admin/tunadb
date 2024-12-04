@@ -11,6 +11,11 @@ import (
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
+type TokenRange struct {
+	Start uint64
+	End   uint64
+}
+
 type ConsistentHashingRing struct {
 	ring            map[uint64]types.Node
 	sortedKeys      []uint64
@@ -18,6 +23,8 @@ type ConsistentHashingRing struct {
 	numReplicas     int
 	uniqueNodes     []types.Node
 	mu    sync.RWMutex
+
+	mapNodeToTokenRange map[string][]TokenRange
 }
 
 // public function (constructor) - to be called outside in the main driver function
@@ -75,6 +82,10 @@ func (chr *ConsistentHashingRing) AddNode(node types.Node) {
 		return chr.sortedKeys[i] < chr.sortedKeys[j]
 	})
 	chr.uniqueNodes = append(chr.uniqueNodes, node)
+
+	chr.updateNodeToTokenRange()
+
+	// TODO: Add logic to redistribute data when a new node is added
 }
 
 // Public Method: Remove Node
@@ -89,6 +100,10 @@ func (chr *ConsistentHashingRing) DeleteNode(node types.Node) {
 		chr.sortedKeys = removeFromSlice(chr.sortedKeys, hashKey)
 	}
 	chr.uniqueNodes = removeFromSlice(chr.uniqueNodes, node)
+
+	chr.updateNodeToTokenRange()
+
+	// TODO: Add logic to redistribute data when a node is removed
 }
 
 // removeFromSlice removes an element from a slice and returns the new slice.
@@ -160,4 +175,39 @@ func (chr *ConsistentHashingRing) DoesRingContainNode(node *types.Node) bool {
 		}
 	}
 	return false
+}
+
+func (chr *ConsistentHashingRing) getNextKey(key uint64) uint64 {
+	idx := sort.Search(len(chr.sortedKeys), func(i int) bool {
+		return chr.sortedKeys[i] >= key
+	})
+
+	idx = (idx + 1) % len(chr.sortedKeys)
+	return chr.sortedKeys[idx]
+}
+
+func (chr *ConsistentHashingRing) GetTokenRangeForNode(nodeID string) []TokenRange {
+	chr.mu.RLock()
+	defer chr.mu.RUnlock()
+
+	return chr.mapNodeToTokenRange[nodeID]
+}
+
+// util function to update the mapNodeToTokenRange, this data structure is used to store the token ranges for each node
+// essential for data redistribution during node addition and removal
+func (chr *ConsistentHashingRing) updateNodeToTokenRange() {
+	// update the mapNodeToTokenRange
+	updatedMapNodeToTokenRange := make(map[string][]TokenRange)
+	for _, n := range chr.uniqueNodes {
+		var tokenRanges []TokenRange
+		for i := 0; i < int(chr.numVirtualNodes); i++ {
+			replicaKey := fmt.Sprintf("%s: %d", n.ID, i)
+			hashed := chr.calculateHash(replicaKey)
+			nextKey := chr.getNextKey(hashed)
+			tokenRanges = append(tokenRanges, TokenRange{Start: hashed, End: nextKey})
+		}
+		updatedMapNodeToTokenRange[n.ID] = tokenRanges
+	}
+
+	chr.mapNodeToTokenRange = updatedMapNodeToTokenRange
 }

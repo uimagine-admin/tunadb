@@ -3,6 +3,7 @@ package ring
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
@@ -208,3 +209,79 @@ func TestDeleteNode2(t *testing.T) {
 		}
 	}
 }
+
+func TestTokenRangeAddNode(t *testing.T) {
+	t.Log("Creating a consistent hashing ring with 3 virtual nodes and 2 replicas.")
+	ring := CreateConsistentHashingRing(3, 2)
+
+	nodeA := types.Node{ID: "1", Name: "NodeA", IPAddress: "192.168.1.1", Port: 8080}
+	nodeB := types.Node{ID: "2", Name: "NodeB", IPAddress: "192.168.1.2", Port: 8081}
+	nodeC := types.Node{ID: "3", Name: "NodeC", IPAddress: "192.168.1.3", Port: 8082}
+	ring.AddNode(nodeA)
+	ring.AddNode(nodeB)
+	ring.AddNode(nodeC)
+
+	assert.True(t, len(ring.GetTokenRangeForNode("1")) == 3)
+	assert.True(t, len(ring.GetTokenRangeForNode("2")) == 3)
+	assert.True(t, len(ring.GetTokenRangeForNode("3")) == 3)
+
+	// assert true that nodeA contain range [{9223291661934313288 11479556236612999045} {4300940255391410034 8598592649790674949} {16697655493772239060 17439072704036419864}]
+	assert.True(t, ring.GetTokenRangeForNode("1")[0].Start == 9223291661934313288)
+	assert.True(t, ring.GetTokenRangeForNode("1")[0].End == 11479556236612999045)
+	assert.True(t, ring.GetTokenRangeForNode("1")[1].Start == 4300940255391410034)
+	assert.True(t, ring.GetTokenRangeForNode("1")[1].End == 8598592649790674949)
+	assert.True(t, ring.GetTokenRangeForNode("1")[2].Start == 16697655493772239060)
+	assert.True(t, ring.GetTokenRangeForNode("1")[2].End == 17439072704036419864)
+
+	// assert true that nodeB contain range 2:[{8598592649790674949 9223291661934313288} {12623532567914357714 14070063418868391783} {14070063418868391783 16697655493772239060}]
+	assert.True(t, ring.GetTokenRangeForNode("2")[0].Start == 8598592649790674949)
+	assert.True(t, ring.GetTokenRangeForNode("2")[0].End == 9223291661934313288)
+	assert.True(t, ring.GetTokenRangeForNode("2")[1].Start == 12623532567914357714)
+	assert.True(t, ring.GetTokenRangeForNode("2")[1].End == 14070063418868391783)
+	assert.True(t, ring.GetTokenRangeForNode("2")[2].Start == 14070063418868391783)
+	assert.True(t, ring.GetTokenRangeForNode("2")[2].End == 16697655493772239060)
+
+	// assert true that nodeC contain range [{2919689892315055810 4300940255391410034} {17439072704036419864 2919689892315055810} {11479556236612999045 12623532567914357714}]]
+	assert.True(t, ring.GetTokenRangeForNode("3")[0].Start == 2919689892315055810)
+	assert.True(t, ring.GetTokenRangeForNode("3")[0].End == 4300940255391410034)
+	assert.True(t, ring.GetTokenRangeForNode("3")[1].Start == 17439072704036419864)
+	assert.True(t, ring.GetTokenRangeForNode("3")[1].End == 2919689892315055810)
+	assert.True(t, ring.GetTokenRangeForNode("3")[2].Start == 11479556236612999045)
+	assert.True(t, ring.GetTokenRangeForNode("3")[2].End == 12623532567914357714)
+}
+
+func TestTokenRangeDeleteNode(t *testing.T) {
+	t.Log("Creating a consistent hashing ring with 3 virtual nodes and 2 replicas.")
+	ring := CreateConsistentHashingRing(3, 2)
+
+	nodeA := types.Node{ID: "1", Name: "NodeA", IPAddress: "192.168.1.1", Port: 8080}
+	nodeB := types.Node{ID: "2", Name: "NodeB", IPAddress: "192.168.1.2", Port: 8081}
+	nodeC := types.Node{ID: "3", Name: "NodeC", IPAddress: "192.168.1.3", Port: 8082}
+	ring.AddNode(nodeA)
+	ring.AddNode(nodeB)
+	ring.AddNode(nodeC)
+
+	ring.DeleteNode(nodeA)
+
+	// assert true that nodeB contain range 2:[[{8598592649790674949 11479556236612999045} {12623532567914357714 14070063418868391783} {14070063418868391783 17439072704036419864}]
+	assert.True(t, ring.GetTokenRangeForNode("2")[0].Start == 8598592649790674949)
+	assert.True(t, ring.GetTokenRangeForNode("2")[0].End == 11479556236612999045)
+	assert.True(t, ring.GetTokenRangeForNode("2")[1].Start == 12623532567914357714)
+	assert.True(t, ring.GetTokenRangeForNode("2")[1].End == 14070063418868391783)
+	assert.True(t, ring.GetTokenRangeForNode("2")[2].Start == 14070063418868391783)
+	assert.True(t, ring.GetTokenRangeForNode("2")[2].End == 17439072704036419864)
+
+	// assert true that nodeC contain range [{2919689892315055810 8598592649790674949} {17439072704036419864 2919689892315055810} {11479556236612999045 12623532567914357714}]
+	assert.True(t, ring.GetTokenRangeForNode("3")[0].Start == 2919689892315055810)
+	assert.True(t, ring.GetTokenRangeForNode("3")[0].End == 8598592649790674949)
+	assert.True(t, ring.GetTokenRangeForNode("3")[1].Start == 17439072704036419864)
+	assert.True(t, ring.GetTokenRangeForNode("3")[1].End == 2919689892315055810)
+	assert.True(t, ring.GetTokenRangeForNode("3")[2].Start == 11479556236612999045)
+	assert.True(t, ring.GetTokenRangeForNode("3")[2].End == 12623532567914357714)
+}
+
+
+
+
+
+
