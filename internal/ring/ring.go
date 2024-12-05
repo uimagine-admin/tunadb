@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -24,7 +25,7 @@ type ConsistentHashingRing struct {
 	uniqueNodes     []types.Node
 	mu    sync.RWMutex
 
-	mapNodeToTokenRange map[string][]TokenRange
+	mapTokenRangesToNodeIDs map[string][]string
 }
 
 // public function (constructor) - to be called outside in the main driver function
@@ -67,10 +68,23 @@ func (chr *ConsistentHashingRing) calculateHash(key string) uint64 {
 	return hasher.Sum64()
 }
 
-// Public Method: to add node
-func (chr *ConsistentHashingRing) AddNode(node types.Node) {
+/*
+	Public Method: Add Node
+	This methods is to remove a node from the ring 
+
+	Returns: The old token ranges for each node before the new node was added, this can be used by
+	the distribution handler to redistribute the data only for nodes that have changed
+*/
+func (chr *ConsistentHashingRing) AddNode(node types.Node) map[string][]string {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
+
+	copyOfMapTokenRangesToNodeIDs := make(map[string][]string)
+	for tokenRangeString, nodeIDs := range chr.mapTokenRangesToNodeIDs {
+		copyNodeIds := make([]string, len(nodeIDs))
+		copyOfMapTokenRangesToNodeIDs[tokenRangeString] = copyNodeIds
+	}
+
 
 	for i := 0; i < int(chr.numVirtualNodes); i++ {
 		replicaKey := fmt.Sprintf("%s: %d", node.ID, i)
@@ -83,15 +97,28 @@ func (chr *ConsistentHashingRing) AddNode(node types.Node) {
 	})
 	chr.uniqueNodes = append(chr.uniqueNodes, node)
 
-	chr.updateNodeToTokenRange()
+	chr.updateTokenRangesToNodeID()
 
-	// TODO: Add logic to redistribute data when a new node is added
+	return copyOfMapTokenRangesToNodeIDs
 }
 
-// Public Method: Remove Node
-func (chr *ConsistentHashingRing) DeleteNode(node types.Node) {
+
+/*
+	Public Method: Remove Node
+	This methods is to remove a node from the ring 
+
+	Returns: The old token ranges for each node before the node was removed, this can be used by
+	the distribution handler to redistribute the data only for nodes that have changed
+*/
+func (chr *ConsistentHashingRing) DeleteNode(node types.Node) map[string][]string {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
+
+	copyOfMapTokenRangesToNodeIDs := make(map[string][]string)
+	for tokenRangeString, nodeIDs := range chr.mapTokenRangesToNodeIDs {
+		copyNodeIds := make([]string, len(nodeIDs))
+		copyOfMapTokenRangesToNodeIDs[tokenRangeString] = copyNodeIds
+	}
 
 	for i := 0; i < int(chr.numVirtualNodes); i++ {
 		replicaKey := fmt.Sprintf("%s: %d", node.ID, i)
@@ -101,9 +128,9 @@ func (chr *ConsistentHashingRing) DeleteNode(node types.Node) {
 	}
 	chr.uniqueNodes = removeFromSlice(chr.uniqueNodes, node)
 
-	chr.updateNodeToTokenRange()
+	chr.updateTokenRangesToNodeID()
 
-	// TODO: Add logic to redistribute data when a node is removed
+	return copyOfMapTokenRangesToNodeIDs
 }
 
 // removeFromSlice removes an element from a slice and returns the new slice.
@@ -117,12 +144,12 @@ func removeFromSlice[T comparable](slice []T, value T) []T {
 }
 
 // Public Method: Get Nodes (returns multiple nodes for replication)
-func (chr *ConsistentHashingRing) GetNodes(key string) []types.Node {
+func (chr *ConsistentHashingRing) GetRecordsReplicas(key string) ( uint64, []types.Node){
 	chr.mu.RLock()
 	defer chr.mu.RUnlock()
 
 	if len(chr.ring) == 0 {
-		return nil
+		return 0, nil 
 	}
 
 	hashKey := chr.calculateHash(key)
@@ -152,7 +179,7 @@ func (chr *ConsistentHashingRing) GetNodes(key string) []types.Node {
 		i++
 	}
 
-	return nodes
+	return hashKey, nodes
 }
 
 // util function to check if a node is already in the list
@@ -190,24 +217,59 @@ func (chr *ConsistentHashingRing) GetTokenRangeForNode(nodeID string) []TokenRan
 	chr.mu.RLock()
 	defer chr.mu.RUnlock()
 
-	return chr.mapNodeToTokenRange[nodeID]
+	tokenRanges := make([]TokenRange, 0)
+	for tokenRangeStr, nodeIDs := range chr.mapTokenRangesToNodeIDs {
+		for _, nID := range nodeIDs {
+			if nID == nodeID {
+				startEnd  := strings.Split(tokenRangeStr, ":")
+				rangeStart, errStr := strconv.ParseUint(startEnd[0], 10, 64)
+				rangeEnd, errEnd := strconv.ParseUint(startEnd[1], 10, 64)
+				
+				if errStr != nil || errEnd != nil {
+					log.Println("Error parsing token range")
+					continue
+				}
+
+				tokenRanges = append(tokenRanges, TokenRange{Start: rangeStart, End: rangeEnd})
+			}
+		}
+	}
+	return tokenRanges
 }
 
 // util function to update the mapNodeToTokenRange, this data structure is used to store the token ranges for each node
 // essential for data redistribution during node addition and removal
-func (chr *ConsistentHashingRing) updateNodeToTokenRange() {
-	// update the mapNodeToTokenRange
-	updatedMapNodeToTokenRange := make(map[string][]TokenRange)
-	for _, n := range chr.uniqueNodes {
-		var tokenRanges []TokenRange
-		for i := 0; i < int(chr.numVirtualNodes); i++ {
-			replicaKey := fmt.Sprintf("%s: %d", n.ID, i)
-			hashed := chr.calculateHash(replicaKey)
-			nextKey := chr.getNextKey(hashed)
-			tokenRanges = append(tokenRanges, TokenRange{Start: hashed, End: nextKey})
+func (chr *ConsistentHashingRing) updateTokenRangesToNodeID() {
+	mapTokenRangesToNodeID := make(map[string][]string)
+
+	for i := 0; i < len(chr.sortedKeys); i++ {
+		currentKey := chr.sortedKeys[i]
+		currentNode := chr.ring[currentKey]
+
+		nextKey := chr.getNextKey(currentKey)
+
+		tokenRange := fmt.Sprintf("%d:%d", currentKey, nextKey)
+
+		mapTokenRangesToNodeID[tokenRange] = []string{currentNode.ID}
+
+		// Assign replicas from the previous numReplicas keys
+		for replica := 1; replica <= chr.numReplicas ; replica++ {
+			replicaIndex := (i - replica + len(chr.sortedKeys)) % len(chr.sortedKeys)
+			replicaKey := chr.sortedKeys[replicaIndex]
+			replicaNode := chr.ring[replicaKey]
+
+			// Append the replica node ID to the token range's list
+			mapTokenRangesToNodeID[tokenRange] = append(mapTokenRangesToNodeID[tokenRange], replicaNode.ID)
 		}
-		updatedMapNodeToTokenRange[n.ID] = tokenRanges
 	}
 
-	chr.mapNodeToTokenRange = updatedMapNodeToTokenRange
+	chr.mapTokenRangesToNodeIDs = mapTokenRangesToNodeID
+}
+
+
+func (chr *ConsistentHashingRing) GetRingMembers() []types.Node {
+	chr.mu.RLock()
+	defer chr.mu.RUnlock()
+
+	return chr.uniqueNodes
 }

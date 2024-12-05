@@ -4,11 +4,13 @@ import (
 	"context"
 	"log"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
+	"github.com/uimagine-admin/tunadb/internal/dataBalancing"
 	chr "github.com/uimagine-admin/tunadb/internal/ring"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
@@ -24,16 +26,17 @@ type GossipHandler struct {
 	gossipFanOut int
 	deadNodeTimeout int // Timeout for marking a node as dead in seconds after being marked as suspect
 	gossipInterval int // Interval for gossiping in seconds
+
 }
 
 // NewGossipHandler initializes a new GossipHandler for the current node.
-func NewGossipHandler(currentNode *types.Node, chr *chr.ConsistentHashingRing, gossipFanOut int, deadNodeTimeout int, gossipInterval int) *GossipHandler {
+func NewGossipHandler(currentNode *types.Node, chr *chr.ConsistentHashingRing, gossipFanOut int, deadNodeTimeout int, gossipInterval int, dh *dataBalancing.DistributionHandler) *GossipHandler {
 	if gossipFanOut <= 1 {
 		log.Fatalf("Invalid gossip fan out: %d, MUST CHOSE A VALUE OF AT LEAST 2. \n", gossipFanOut)
 	}
 	return &GossipHandler{
 		NodeInfo:     currentNode,
-		Membership:   NewMembership(currentNode),
+		Membership:   NewMembership(currentNode, dh),
 		chr:          chr,
 		seenMessages: make(map[string]bool),
 		gossipFanOut: gossipFanOut,
@@ -88,7 +91,7 @@ func (g *GossipHandler) gossip(ctx context.Context, gossipFanOut int) {
 		message := g.createGossipMessage()
 
 		// Send gossip message to the target node
-		address := targetNode.IPAddress
+		address :=  targetNode.IPAddress + ":" + strconv.FormatUint(targetNode.Port, 10)
 
 		err := communication.SendGossipMessage(&ctx, address, message)
 		if err != nil {
@@ -141,7 +144,7 @@ func (g *GossipHandler) createGossipMessage() *pb.GossipMessage {
 
 // HandleGossipMessage processes an incoming gossip message.
 func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipMessage) (*pb.GossipAck, error) {
-	printReceivedGossipMessage(g.NodeInfo.Name,req)
+	// printReceivedGossipMessage(g.NodeInfo.Name,req)
 
 	// Deduplication: Check if message was already seen
 	messageID := req.MessageCreator + req.MessageCreateTime
@@ -191,8 +194,17 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 				log.Printf("Node[%s] Node %s marked as suspect %v seconds ago.[%v] \n", g.NodeInfo.ID, node.Name, time.Since(node.LastUpdated).Seconds(), node.LastUpdated )
 				// TODO @a-nnza-r change this to a configurable value
 				if time.Since(node.LastUpdated) > (time.Duration(g.deadNodeTimeout) * time.Second) {
-					g.Membership.MarkNodeDead(node.Name)
 					log.Printf("Node[%s] Marking node %s as dead\n", g.NodeInfo.ID, node.Name)
+					g.Membership.MarkNodeDead(node.Name, g.chr)
+					g.Membership.AddOrUpdateNode(&types.Node{
+						IPAddress: node.IPAddress,
+						ID:        node.ID,
+						Port:      node.Port,
+						Name:      node.Name,
+						Status:    types.NodeStatusDead,
+						LastUpdated: node.LastUpdated,
+					}, g.chr)
+
 				}
 			}
 		}
@@ -201,7 +213,7 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 			targetNodeIndices := rand.Perm(len(aliveNodes))
 			for i := 0; i < g.gossipFanOut && i < len(aliveNodes); i++ {
 				targetNode := aliveNodes[targetNodeIndices[i]]
-				address := targetNode.IPAddress
+				targetNodeAddress := targetNode.IPAddress + ":" + strconv.FormatUint(targetNode.Port, 10)
 				// update the message with the current node's membership view
 				req.Sender = g.NodeInfo.Name
 				req.Nodes = make(map[string]*pb.NodeInfo)
@@ -226,8 +238,8 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 						}
 					}
 				}
-				printPropagatedGossipMessage(req)
-				err := communication.SendGossipMessage(&ctx, address, req)
+				// printPropagatedGossipMessage(req)
+				err := communication.SendGossipMessage(&ctx, targetNodeAddress, req)
 				if err != nil {
 					log.Printf("Node[%s] Error propagating gossip to node %s with %d; %v\n", g.NodeInfo.ID ,targetNode.Name, err, i)
 				} else {

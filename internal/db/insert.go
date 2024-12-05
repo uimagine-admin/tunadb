@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
@@ -33,6 +34,8 @@ func HandleInsert(nodeId string, req *pb.WriteRequest) error {
 	} else {
 		return fmt.Errorf("failed to check file existence: %w", err)
 	}
+	
+	hashKey := strconv.FormatUint(req.HashKey, 10)
 
 	// Create a new event object
 	newEvent := Row{
@@ -42,6 +45,7 @@ func HandleInsert(nodeId string, req *pb.WriteRequest) error {
 		PageId:      req.PageId,
 		UpdatedAt:   time.Now().Format(time.RFC3339Nano),
 		CreatedAt:   time.Now().Format(time.RFC3339Nano),
+		HashKey: hashKey,
 	}
 
 	// Append the new event to the list

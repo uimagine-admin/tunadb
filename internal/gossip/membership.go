@@ -2,9 +2,12 @@ package gossip
 
 import (
 	"log"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/uimagine-admin/tunadb/internal/dataBalancing"
 	chr "github.com/uimagine-admin/tunadb/internal/ring"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
@@ -13,15 +16,17 @@ type Membership struct {
 	currentNode *types.Node
 	mu    sync.RWMutex
 	nodes map[string]*types.Node
+	DataDistributionHandler *dataBalancing.DistributionHandler
 }
 
 // NewMembership initializes a new Membership instance
-func NewMembership(currentNodeInformation *types.Node) *Membership {
+func NewMembership(currentNodeInformation *types.Node, dataDistributionHandler *dataBalancing.DistributionHandler) *Membership {
 
 	// Initialize the membership with the current node
 	m := &Membership{
 		nodes: make(map[string]*types.Node),
 		currentNode : currentNodeInformation,
+		DataDistributionHandler: dataDistributionHandler,
 	}
 	
 	m.mu.Lock()
@@ -62,7 +67,7 @@ func (m *Membership) AddOrUpdateNode(node *types.Node, chr *chr.ConsistentHashin
 		//case 1.1 1.2: node is currently alive or suspect, and the incoming node is alive
 		if incomingNode.Status == types.NodeStatusAlive && (existingNode.Status == types.NodeStatusAlive || existingNode.Status == types.NodeStatusSuspect) {
 			m.nodes[incomingNode.Name] = &incomingNode
-			log.Printf("Node[%s] Updating node: %v\n", m.currentNode.ID, incomingNode.String())
+			// log.Printf("Node[%s] Updating node: %v\n", m.currentNode.ID, incomingNode.String())
 		}
 
 		// case 1.3: node is currently marked As Dead but the incoming node is alive
@@ -109,10 +114,9 @@ func (m *Membership) AddOrUpdateNode(node *types.Node, chr *chr.ConsistentHashin
 	if ringUpdated == true {
 		if !chr.DoesRingContainNode(&incomingNode) {
 			log.Printf("Node[%s] Adding node: %s\n", m.currentNode.ID, incomingNode.String())
-			chr.AddNode(incomingNode)
-		} else if incomingNode.Status == types.NodeStatusDead {
-			log.Printf("Node[%s] Deleting node: %s\n", m.currentNode.ID, incomingNode.String())
-			chr.DeleteNode(incomingNode)
+			oldKeyRanges := chr.AddNode(incomingNode)
+			mapNodeIdsToOldKeyRanges := convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(oldKeyRanges)
+			m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
 		}
 	}
 }
@@ -130,7 +134,7 @@ func (m *Membership) MarkNodeSuspect(nodeName string) {
 }
 
 // MarkNodeDead marks a node as dead after prolonged unresponsiveness
-func (m *Membership) MarkNodeDead(nodeName string) {
+func (m *Membership) MarkNodeDead(nodeName string,chr *chr.ConsistentHashingRing) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -138,6 +142,18 @@ func (m *Membership) MarkNodeDead(nodeName string) {
 	if exists {
 		node.Status = types.NodeStatusDead
 		node.LastUpdated = time.Now()
+		log.Printf("Node[%s] Deleting node: %s\n", m.currentNode.ID, node.String())
+		nodeObj := types.Node{
+			ID:         node.ID,
+			Name:       node.Name,
+			IPAddress:  node.IPAddress,
+			Port:       node.Port,
+			Status:     types.NodeStatusDead,
+			LastUpdated: node.LastUpdated,
+		}
+		oldKeyRanges := chr.DeleteNode(nodeObj)
+		mapNodeIdsToOldKeyRanges := convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(oldKeyRanges)
+		m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
 	}
 }
 
@@ -193,4 +209,27 @@ func (m *Membership) Heartbeat(nodeName string) {
 		node.Status = types.NodeStatusAlive
 		node.LastUpdated = time.Now()
 	}
+}
+
+func convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(tokenRangesToNodeIDs map[string][]string) map[string][]chr.TokenRange {
+	mapNodeIDsToTokenRanges := make(map[string][]chr.TokenRange)
+	for tokenRangeString, nodeIDs := range tokenRangesToNodeIDs {
+		for _, nodeID := range nodeIDs {
+			tokenStartEnd := strings.Split(tokenRangeString, ":")
+			tokenStart, errStart := strconv.ParseUint(tokenStartEnd[0], 10,64)
+			tokenEnd, errEnd := strconv.ParseUint(tokenStartEnd[1], 10,64)
+
+			if errStart != nil || errEnd != nil {
+				log.Println("Error parsing token range")
+				continue
+			}else {
+				tokenRange := chr.TokenRange{
+					Start: tokenStart,
+					End: tokenEnd,
+				}
+				mapNodeIDsToTokenRanges[nodeID] = append(mapNodeIDsToTokenRanges[nodeID], tokenRange)
+			}
+		}
+	}
+	return mapNodeIDsToTokenRanges
 }

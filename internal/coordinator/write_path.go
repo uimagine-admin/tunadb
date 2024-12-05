@@ -44,7 +44,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 	} else {
 		//if incoming is from client:
 		ring := h.GetRing()
-		replicas := ring.GetNodes(req.PageId)
+		token, replicas := ring.GetRecordsReplicas(req.PageId)
 		if len(replicas) == 0 {
 			return &pb.WriteResponse{}, errors.New("no available node for key")
 		}
@@ -87,7 +87,8 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 					Event:       req.Event,
 					ComponentId: req.ComponentId,
 					Name:        os.Getenv("NODE_NAME"),
-					NodeType:    "IS_NODE"})
+					NodeType:    "IS_NODE",
+					HashKey:    token,})
 
 				if err != nil {
 					log.Printf("error reading from %s: %v\n", address, err)

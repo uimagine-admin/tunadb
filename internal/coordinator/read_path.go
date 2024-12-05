@@ -46,7 +46,8 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 		}, nil
 	} else {
 		ring := h.GetRing()
-		replicas := ring.GetNodes(req.PageId)
+		_, replicas := ring.GetRecordsReplicas(req.PageId)
+
 		if len(replicas) == 0 {
 			return &pb.ReadResponse{}, errors.New("no available node for key")
 		}

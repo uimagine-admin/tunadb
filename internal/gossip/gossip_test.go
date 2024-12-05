@@ -33,7 +33,6 @@ func StartNode(handler *gossip.GossipHandler) (*grpc.Server, error) {
 		GossipHandler: handler,
 	})
 	
-
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", handler.NodeInfo.Port))
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen: %v", err)
@@ -69,7 +68,7 @@ func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationF
 	nodes := make([]*types.Node, numNodes)
 	for i := 0; i < numNodes; i++ {
 		node := &types.Node{
-			IPAddress: fmt.Sprintf("localhost:900%d", i),
+			IPAddress: "localhost",
 			ID:     fmt.Sprintf("node_%d", i),
 			Port:   uint64(9000 + i),
 			Name:   fmt.Sprintf("cassandra-node%d", i),
@@ -83,7 +82,7 @@ func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationF
 	// Step 2: Start gossip handlers for all nodes
 	gossipHandlers := make([]*gossip.GossipHandler, numNodes)
 	for i, node := range nodes {
-		gossipHandlers[i] = gossip.NewGossipHandler(node, nodeRings[i], gossipFanOut, suspectToDeadTimeout,gossipInterval)
+		gossipHandlers[i] = gossip.NewGossipHandler(node, nodeRings[i], gossipFanOut, suspectToDeadTimeout,gossipInterval,nil)
 
 		// Add all nodes to the membership list
 		for _, otherNode := range nodes {
@@ -183,7 +182,7 @@ func TestAddNodesToStableSystem(t *testing.T) {
 
 	// step 6: Run new node server
 	newNode := types.Node{
-		IPAddress: "localhost:9003",
+		IPAddress: "localhost",
 		ID:     "Node_3",
 		Port:   uint64(9003),
 		Name:   fmt.Sprintf("localhost:%d", 9003),
@@ -191,7 +190,7 @@ func TestAddNodesToStableSystem(t *testing.T) {
 	}
 	newNodeRing := rp.CreateConsistentHashingRing(10, 3)
 	newNodeRing.AddNode(newNode)
-	newNodeHandler := gossip.NewGossipHandler(&newNode,newNodeRing,gossipFanOut,suspectToDeadTimeout, gossipInterval)
+	newNodeHandler := gossip.NewGossipHandler(&newNode,newNodeRing,gossipFanOut,suspectToDeadTimeout, gossipInterval, nil)
 	newServer, newServerErr := StartNode(newNodeHandler)
 	if newServerErr != nil {
 		t.Fatalf("Failed to start gRPC server for node %s: %v",newNode.Name, newServerErr)

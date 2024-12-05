@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
+	"math/rand"
 	"os"
+	"strconv"
 	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
 )
 
-func main() {
+func main() {	
 	// Add a sleep to allow server startup
 	time.Sleep(2 * time.Second)
 
@@ -50,6 +52,25 @@ func main() {
 		})
 
 		// Block forever to keep the node running
-		select {}
+		// select {}
+
+		for i := 0; i < 10; i++ {
+			time.Sleep(2 * time.Second)
+			currentDate := time.Now().Format(time.RFC3339Nano)
+			randomPageID := strconv.Itoa(rand.Intn(100)) 
+			communication.SendWrite(&ctx_write, os.Getenv("PEER_ADDRESS"), &pb.WriteRequest{
+				Date:        currentDate,
+				PageId:      randomPageID,
+				Event:       "click",
+				ComponentId: "btn1",
+				Name:        os.Getenv("NODE_NAME"),
+				NodeType:    "IS_CLIENT"})
+
+		}
+
+		select{
+
+		}
+
 	}
 }

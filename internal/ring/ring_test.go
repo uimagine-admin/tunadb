@@ -59,7 +59,7 @@ func TestAddNode(t *testing.T) {
 
 	t.Log("Verifying that the correct node is returned for a key.")
 	key := "testKey"
-	assignedNodes := ring.GetNodes(key)
+	_, assignedNodes := ring.GetRecordsReplicas(key)
 	if len(assignedNodes) == 0 {
 		t.Errorf("Expected at least 1 node to be assigned for the key, but got none.")
 	} else {
@@ -67,8 +67,8 @@ func TestAddNode(t *testing.T) {
 	}
 }
 
-// 3. TestGetNodes - let's check if we can get the correct nodes for a given key
-func TestGetNodes(t *testing.T) {
+// 3. TestGetRecordsReplicas - let's check if we can get the correct nodes for a given key
+func TestGetRecordsReplicas(t *testing.T) {
 	t.Log("Creating a consistent hashing ring with 3 virtual nodes and 2 replicas.")
 	ring := CreateConsistentHashingRing(3, 2)
 
@@ -80,7 +80,7 @@ func TestGetNodes(t *testing.T) {
 
 	key := "user123"
 	t.Logf("Getting nodes responsible for key '%s'", key)
-	assignedNodes := ring.GetNodes(key)
+	_, assignedNodes := ring.GetRecordsReplicas(key)
 	if len(assignedNodes) != ring.numReplicas {
 		t.Fatalf("Expected %d nodes to be assigned, but got %d", ring.numReplicas, len(assignedNodes))
 	}
@@ -123,7 +123,7 @@ func TestDeleteNode(t *testing.T) {
 	// Double-check that a query returns the remaining node
 	key := "user456"
 	t.Logf("Querying for key '%s' after deletion of nodeA.", key)
-	assignedNodes := ring.GetNodes(key)
+	_, assignedNodes := ring.GetRecordsReplicas(key)
 	if len(assignedNodes) == 0 {
 		t.Fatal("Expected nodes to be assigned, got none")
 	}
@@ -157,7 +157,7 @@ func TestHashDistribution(t *testing.T) {
 	keys := []string{"key1", "key2", "key3", "key4", "key5", "key6", "key7", "key8", "key9", "key10"}
 
 	for _, key := range keys {
-		assignedNodes := ring.GetNodes(key)
+		_, assignedNodes := ring.GetRecordsReplicas(key)
 		for _, node := range assignedNodes {
 			hashCounts[node.ID]++
 		}
@@ -195,7 +195,7 @@ func TestDeleteNode2(t *testing.T) {
 	// Double-check that a query returns the remaining node
 	key := "user456"
 	t.Logf("Querying for key '%s' after deletion of nodeA.", key)
-	assignedNodes := ring.GetNodes(key)
+	_, assignedNodes := ring.GetRecordsReplicas(key)
 	if len(assignedNodes) == 0 {
 		t.Fatal("Expected nodes to be assigned, got none")
 	}
