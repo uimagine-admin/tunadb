@@ -123,6 +123,11 @@ func (g *GossipHandler) createGossipMessage() *pb.GossipMessage {
 				LastUpdated: time.Now().Format(time.RFC3339Nano),
 			}
 		} else {
+			if node.Status == types.NodeStatusSuspect && time.Since(node.LastUpdated) > (time.Duration(g.deadNodeTimeout) * time.Second) {
+				log.Printf("Node[%s] Marking node %s as dead\n", g.NodeInfo.ID, node.Name)
+				g.Membership.MarkNodeDead(node.ID, g.chr)
+			}
+
 			nodeInfos[id] = &pb.NodeInfo{
 				IpAddress:  node.IPAddress,
 				Id:         node.ID,
@@ -194,9 +199,8 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 				log.Printf("Node[%s] Node %s marked as suspect %v seconds ago.[%v] \n", g.NodeInfo.ID, node.Name, time.Since(node.LastUpdated).Seconds(), node.LastUpdated )
 				// TODO @a-nnza-r change this to a configurable value
 				if time.Since(node.LastUpdated) > (time.Duration(g.deadNodeTimeout) * time.Second) {
-					log.Printf("Node[%s] Marking node %s as dead\n", g.NodeInfo.ID, node.Name)
+					log.Printf("-- Node[%s] Marking node %s as dead\n", g.NodeInfo.ID, node.Name)
 					g.Membership.MarkNodeDead(node.ID, g.chr)
-
 				}
 			}
 		}

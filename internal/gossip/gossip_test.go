@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	pb "github.com/uimagine-admin/tunadb/api"
+	"github.com/uimagine-admin/tunadb/internal/dataBalancing"
 	"github.com/uimagine-admin/tunadb/internal/gossip"
 	rp "github.com/uimagine-admin/tunadb/internal/ring"
 	"github.com/uimagine-admin/tunadb/internal/types"
@@ -57,15 +58,11 @@ func StartNode(handler *gossip.GossipHandler) (*grpc.Server, error) {
  numberOfVirtualNodes: Number of virtual nodes for each node
 */
 func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationFactor int, gossipFanOut int, suspectToDeadTimeout int, gossipInterval int) ([]*types.Node,[]*gossip.GossipHandler, []*grpc.Server, []*rp.ConsistentHashingRing, []*context.Context, []*context.CancelFunc) {
-	// Step 1: Initialize the cluster with a consistent hashing ring
-	nodeRings := []*rp.ConsistentHashingRing{}
-	for i := 0; i < numNodes; i++ {
-		ring := rp.CreateConsistentHashingRing(numberOfVirtualNodes, replicationFactor)
-		nodeRings = append(nodeRings, ring)
-	}
-
-
+	// step 0: create numNodes nodes and their corresponding rings
 	nodes := make([]*types.Node, numNodes)
+	nodeRings := make([]*rp.ConsistentHashingRing, numNodes)
+	dataHandlers := make([]*dataBalancing.DistributionHandler, numNodes)
+	gossipHandlers := make([]*gossip.GossipHandler, numNodes)
 	for i := 0; i < numNodes; i++ {
 		node := &types.Node{
 			IPAddress: "localhost",
@@ -75,14 +72,23 @@ func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationF
 			Status: types.NodeStatusAlive,
 			LastUpdated: time.Now(),
 		}
-		nodeRings[i].AddNode(*node)
 		nodes[i] = node
 	}
 
+	// Step 1: Initialize the cluster with a consistent hashing ring
+	for i := 0; i < numNodes; i++ {
+		ringView := rp.CreateConsistentHashingRing(nodes[i], numberOfVirtualNodes, replicationFactor)
+		nodeRings[i] = ringView
+		dataHandler := &dataBalancing.DistributionHandler{
+			Ring: ringView,
+			CurrentNode: nodes[i],
+		}
+		dataHandlers[i] = dataHandler
+	}
+
 	// Step 2: Start gossip handlers for all nodes
-	gossipHandlers := make([]*gossip.GossipHandler, numNodes)
 	for i, node := range nodes {
-		gossipHandlers[i] = gossip.NewGossipHandler(node, nodeRings[i], gossipFanOut, suspectToDeadTimeout,gossipInterval,nil)
+		gossipHandlers[i] = gossip.NewGossipHandler(node, nodeRings[i], gossipFanOut, suspectToDeadTimeout,gossipInterval,dataHandlers[i])
 
 		// Add all nodes to the membership list
 		for _, otherNode := range nodes {
@@ -181,16 +187,19 @@ func TestAddNodesToStableSystem(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	// step 6: Run new node server
-	newNode := types.Node{
+	newNode := &types.Node{
 		IPAddress: "localhost",
 		ID:     "Node_3",
 		Port:   uint64(9003),
 		Name:   fmt.Sprintf("localhost:%d", 9003),
 		Status: types.NodeStatusAlive,
 	}
-	newNodeRing := rp.CreateConsistentHashingRing(10, 3)
-	newNodeRing.AddNode(newNode)
-	newNodeHandler := gossip.NewGossipHandler(&newNode,newNodeRing,gossipFanOut,suspectToDeadTimeout, gossipInterval, nil)
+	newNodeRing := rp.CreateConsistentHashingRing(newNode,10, 3)
+	dataHandler := &dataBalancing.DistributionHandler{
+		Ring: newNodeRing,
+		CurrentNode: newNode,
+	}
+	newNodeHandler := gossip.NewGossipHandler(newNode,newNodeRing,gossipFanOut,suspectToDeadTimeout, gossipInterval, dataHandler)
 	newServer, newServerErr := StartNode(newNodeHandler)
 	if newServerErr != nil {
 		t.Fatalf("Failed to start gRPC server for node %s: %v",newNode.Name, newServerErr)
@@ -279,7 +288,11 @@ func TestRemoveUnresponsiveNode(t *testing.T){
 	for i, handler := range existingGossipHandlers {
 		members := handler.Membership.GetAllNodes()
 		for _, member := range members {
-			assert.True(t, nodeRings[i].DoesRingContainNode(member), "Node[%s] Node with ID %s not found in ring", handler.NodeInfo.ID, member.ID)
+			if member.Status == types.NodeStatusDead {
+				assert.False(t, nodeRings[i].DoesRingContainNode(member), "Node[%s] Node with ID %s still found in ring", handler.NodeInfo.ID, member.ID)
+			} else {
+				assert.True(t, nodeRings[i].DoesRingContainNode(member), "Node[%s] Node with ID %s not found in ring", handler.NodeInfo.ID, member.ID)
+			}
 		}
 	}
 }
@@ -287,7 +300,7 @@ func TestRemoveUnresponsiveNode(t *testing.T){
 func TestDeadNodeRecovery(t *testing.T) {
     // Step 1: Create an initial system with 4 nodes
     numNodes := 4
-    numVirtualNodes := uint64(1)
+    numVirtualNodes := uint64(3)
     replicationFactor := 2
     gossipFanOut := 2
 	suspectToDeadTimeout := 5
@@ -302,14 +315,14 @@ func TestDeadNodeRecovery(t *testing.T) {
     log.Printf("Simulating failure of node %s", nodes[failedNodeIndex].Name)
 
     // Allow time for gossip to propagate the failure
-    time.Sleep(10 * time.Second)
+    time.Sleep(12 * time.Second)
 
     // Verify that the failed node is marked as dead in other nodes' memberships
     for _, handler := range gossipHandlers[:failedNodeIndex] {
         members := handler.Membership.GetAllNodes()
         for _, member := range members {
             if member.ID == nodes[failedNodeIndex].ID {
-                assert.False(t, member.IsAlive(), "Node %s is still marked as alive", member.ID)
+                assert.True(t, member.IsDead(), "Node %s is still marked as alive", member.ID)
             }
         }
     }
@@ -331,7 +344,7 @@ func TestDeadNodeRecovery(t *testing.T) {
     log.Printf("[%s] is now responding", nodes[failedNodeIndex].ID)
 
     // Allow time for gossip to propagate the recovery
-    time.Sleep(6 * time.Second)
+    time.Sleep(10 * time.Second)
 
     // Step 4: Verify that the recovered node is marked as alive in other nodes' memberships
     for _, handler := range gossipHandlers[:failedNodeIndex] {

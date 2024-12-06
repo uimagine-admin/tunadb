@@ -121,7 +121,6 @@ func (chr *ConsistentHashingRing) AddNode(node *types.Node) map[string][]string 
 func (chr *ConsistentHashingRing) DeleteNode(node *types.Node) map[string][]string {
 	// TODO : We should update the code to not remove the node that is maintaining 
 	// this ring view 
-
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 

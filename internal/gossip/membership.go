@@ -113,6 +113,8 @@ func (m *Membership) AddOrUpdateNode(incomingNode *types.Node, chr *chr.Consiste
 			m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
 		} else {
 			// TODO: What happens when the ring was not updated properly after last failure ? 
+			log.Printf("Node[%s] Node already exists in ring: %s\n", m.currentNode.ID, incomingNode.String())
+			log.Printf("Node[%s] Ring: %v\n", m.currentNode.ID, chr.String())
 			log.Fatalf("Node[%s] Node exists in ring but not in membership: %s\n", m.currentNode.ID, incomingNode.String())
 		}
 
@@ -165,6 +167,7 @@ func (m *Membership) markNodeDead(nodeID string, chr *chr.ConsistentHashingRing)
 	}
 
 	node, exists := m.nodes[nodeID]
+	log.Printf("Node[%s] Supposed to delete node: %s\n", m.currentNode.ID, node.String())
 	if exists {
 		node.Status = types.NodeStatusDead
 		node.LastUpdated = time.Now()
