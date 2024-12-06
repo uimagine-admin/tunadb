@@ -142,13 +142,6 @@ func main() {
 	nodeID := os.Getenv("ID")
 	port, _ := strconv.ParseUint(portInternal, 10, 64)
 
-	// Set up the consistent hashing ring
-	ring, err := startRing(peerAddresses)
-
-	if err != nil {
-		log.Fatalf("Failed to start ring: %v", err)
-	}
-
 	// Initialize the current node and gossip handler
 	currentNode := &types.Node{
 		ID:   nodeID,
@@ -158,10 +151,14 @@ func main() {
 		IPAddress: nodeName,
 	}
 
+	// Set up the consistent hashing ring
+	// ring, err := startRing(currentNode, peerAddresses)
+	ring := ring.CreateConsistentHashingRing(currentNode, 3, 2)
+
 	// Initialize the data distribution handler
 	distributionHandler := dataBalancing.DistributionHandler{
 		Ring: ring,
-		CurrentNodeID: nodeID,
+		CurrentNode: currentNode,
 	}
 
 	// Adjust Fanout, timeouts, and interval as needed
@@ -179,6 +176,7 @@ func main() {
 			Port: port,
 			ID:   fmt.Sprintf("node-%s", parts[0][len(parts[0])-1:]),
 			IPAddress: parts[0],
+			Status: types.NodeStatusAlive,
 		}
 		gossipHandler.Membership.AddOrUpdateNode(peerNode, ring)
 	}
@@ -213,26 +211,26 @@ func StartServer(ringView *ring.ConsistentHashingRing, gossipHandler *gossip.Gos
 	}
 }
 
-func startRing(peerAddresses []string) (*ring.ConsistentHashingRing, error) {
-	nodes := make([]types.Node, len(peerAddresses))
-	for i, address := range peerAddresses {
-		parts := strings.Split(address, ":")
-		port, _ := strconv.ParseUint(parts[1], 10, 64)
-		nodes[i] = types.Node{
-			Name: parts[0],
-			Port: port,
-			ID:   fmt.Sprintf("node-%d", i),
-			IPAddress: parts[0],
-		}
-	}
+// func startRing(currentNode *types.Node, peerAddresses []string) (*ring.ConsistentHashingRing, error) {
+// 	nodes := make([]*types.Node, len(peerAddresses))
+// 	for i, address := range peerAddresses {
+// 		parts := strings.Split(address, ":")
+// 		port, _ := strconv.ParseUint(parts[1], 10, 64)
+// 		nodes[i] = &types.Node{
+// 			Name: parts[0],
+// 			Port: port,
+// 			ID:   fmt.Sprintf("node-%d", i),
+// 			IPAddress: parts[0],
+// 		}
+// 	}
 
-	r := ring.CreateConsistentHashingRing(uint64(len(nodes)), 2)
-	for _, node := range nodes {
-		r.AddNode(node)
-	}
+// 	r := ring.CreateConsistentHashingRing(currentNode, uint64(len(nodes)), 2)
+// 	for _, node := range nodes {
+// 		r.AddNode(node)
+// 	}
 
-	return r, nil
-}
+// 	return r, nil
+// }
 
 func getPeerAddresses() []string {
 	// Fetch peer addresses from environment variables
