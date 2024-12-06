@@ -96,10 +96,10 @@ func (g *GossipHandler) gossip(ctx context.Context, gossipFanOut int) {
 		err := communication.SendGossipMessage(&ctx, address, message)
 		if err != nil {
 			log.Printf("[%s] Error gossiping with node %s; %v\n", g.NodeInfo.ID ,targetNode.Name, err)
-			g.Membership.MarkNodeSuspect(targetNode.Name)
+			g.Membership.MarkNodeSuspect(targetNode.ID)
 		} else {
 			// log.Printf("Node[%s] Gossip exchange with node %s successful.\n", g.NodeInfo.ID, targetNode.Name)
-			g.Membership.Heartbeat(targetNode.Name)
+			g.Membership.Heartbeat(targetNode.ID)
 		}
 
 	}
@@ -195,15 +195,7 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 				// TODO @a-nnza-r change this to a configurable value
 				if time.Since(node.LastUpdated) > (time.Duration(g.deadNodeTimeout) * time.Second) {
 					log.Printf("Node[%s] Marking node %s as dead\n", g.NodeInfo.ID, node.Name)
-					g.Membership.MarkNodeDead(node.Name, g.chr)
-					g.Membership.AddOrUpdateNode(&types.Node{
-						IPAddress: node.IPAddress,
-						ID:        node.ID,
-						Port:      node.Port,
-						Name:      node.Name,
-						Status:    types.NodeStatusDead,
-						LastUpdated: node.LastUpdated,
-					}, g.chr)
+					g.Membership.MarkNodeDead(node.ID, g.chr)
 
 				}
 			}
@@ -219,7 +211,7 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 				req.Nodes = make(map[string]*pb.NodeInfo)
 				for _, node := range g.Membership.GetAllNodes() {
 					if node.Name == g.NodeInfo.Name {
-						req.Nodes[node.Name] = &pb.NodeInfo{
+						req.Nodes[node.ID] = &pb.NodeInfo{
 							IpAddress:  node.IPAddress,
 							Id:         node.ID,
 							Port:       node.Port,
@@ -228,7 +220,7 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 							LastUpdated: time.Now().Format(time.RFC3339Nano),
 						}
 					} else {
-						req.Nodes[node.Name] = &pb.NodeInfo{
+						req.Nodes[node.ID] = &pb.NodeInfo{
 							IpAddress:  node.IPAddress,
 							Id:         node.ID,
 							Port:       node.Port,

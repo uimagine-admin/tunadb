@@ -96,7 +96,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 				continue
 			}
 
-			go func(replica types.Node) {
+			go func(replica *types.Node) {
 				defer wg.Done()
 
 				// TODO replica.Name should be replaced with replica.Address

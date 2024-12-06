@@ -74,7 +74,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 				continue
 			} //so it doesnt send to itself
 			wg.Add(1)
-			go func(replica types.Node) {
+			go func(replica *types.Node) {
 				defer wg.Done()
 
 				address := fmt.Sprintf("%s:%d", replica.Name, replica.Port)

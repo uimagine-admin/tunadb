@@ -18,7 +18,7 @@ import (
 type DistributionHandler struct {
 	Ring *ring.ConsistentHashingRing
 	mu   sync.Mutex
-	CurrentNodeID string
+	CurrentNode *types.Node
 }
 
 // SyncData redistributes data based on updated ring state
@@ -42,7 +42,7 @@ func (dh *DistributionHandler) HandleDataSync(ctx context.Context, req *pb.SyncD
 			return nil, nil
 		}
 
-		err := db.HandleInsert(dh.CurrentNodeID, &pb.WriteRequest{
+		err := db.HandleInsert(dh.CurrentNode.ID, &pb.WriteRequest{
 			Date:         row.Data["timestamp"],
 			PageId:       row.Data["page_id"],
 			Event:        row.Data["event"],
@@ -82,8 +82,8 @@ func (dh *DistributionHandler) TriggerDataRedistribution(oldTokenRanges map[stri
 					break
 				}
 			}
-			if !found {
-				go dh.sendDataForTokenRange(&replica, tokenRange)
+			if !found && replica.ID != dh.CurrentNode.ID {
+				go dh.sendDataForTokenRange(replica, tokenRange)
 			}
 		}
 	}
@@ -95,7 +95,7 @@ func (dh *DistributionHandler) TriggerDataRedistribution(oldTokenRanges map[stri
 func (dh *DistributionHandler) sendDataForTokenRange(replica *types.Node, tokenRange ring.TokenRange) {
 	log.Printf("Sending data for TokenRange %v-%v to new owner...", tokenRange.Start, tokenRange.End)
 
-	dataRows, err := db.HandleRecordsFetchByHashKey(dh.CurrentNodeID, tokenRange)
+	dataRows, err := db.HandleRecordsFetchByHashKey(dh.CurrentNode.ID, tokenRange)
 	if err != nil {
 		log.Printf("Failed to fetch data for TokenRange %v-%v: %v", tokenRange.Start, tokenRange.End, err)
 		return 
@@ -127,7 +127,7 @@ func (dh *DistributionHandler) sendDataForTokenRange(replica *types.Node, tokenR
 
 	// TODO: batch data rows and send in chunks
 	req := &pb.SyncDataRequest{
-		Sender: dh.CurrentNodeID,
+		Sender: dh.CurrentNode.ID,
 		Data:   dataRows,
 	}
 	if err := stream.Send(req); err != nil {

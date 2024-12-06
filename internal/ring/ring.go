@@ -13,29 +13,37 @@ import (
 )
 
 type TokenRange struct {
-	Start uint64
-	End   uint64
+	Start uint64 // exclusive does not include the start
+	End   uint64 // inclusive
 }
 
 type ConsistentHashingRing struct {
-	ring            map[uint64]types.Node
+	ring            map[uint64]*types.Node
 	sortedKeys      []uint64
 	numVirtualNodes uint64
 	numReplicas     int
-	uniqueNodes     []types.Node
+	uniqueNodes     []*types.Node
 	mu    sync.RWMutex
 
 	mapTokenRangesToNodeIDs map[string][]string
 }
 
-// public function (constructor) - to be called outside in the main driver function
-func CreateConsistentHashingRing(numVirtualNodes uint64, numReplicas int) *ConsistentHashingRing {
-	return &ConsistentHashingRing{
-		ring:            make(map[uint64]types.Node),
+/*
+	Public function (constructor) - to be called outside in the main driver function
+
+	Take note that this methods takes in the currentNode ie the node/server that is 
+	running on the current machine. The currentNode object passes to this node should
+	be the same object that is passed to the gossipHandler and the dataDistributionHandler
+*/
+func CreateConsistentHashingRing(currentNode *types.Node, numVirtualNodes uint64, numReplicas int) *ConsistentHashingRing {
+	newRing := &ConsistentHashingRing{
+		ring:            make(map[uint64]*types.Node),
 		sortedKeys:      []uint64{},
 		numVirtualNodes: numVirtualNodes,
 		numReplicas:     numReplicas,
 	}
+	newRing.AddNode(currentNode)
+	return newRing
 }
 
 // Public and special method: util function to print consistent hashing ring prettily
@@ -70,12 +78,12 @@ func (chr *ConsistentHashingRing) calculateHash(key string) uint64 {
 
 /*
 	Public Method: Add Node
-	This methods is to remove a node from the ring 
+	This methods is to add a node to the ring 
 
 	Returns: The old token ranges for each node before the new node was added, this can be used by
 	the distribution handler to redistribute the data only for nodes that have changed
 */
-func (chr *ConsistentHashingRing) AddNode(node types.Node) map[string][]string {
+func (chr *ConsistentHashingRing) AddNode(node *types.Node) map[string][]string {
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
@@ -110,7 +118,10 @@ func (chr *ConsistentHashingRing) AddNode(node types.Node) map[string][]string {
 	Returns: The old token ranges for each node before the node was removed, this can be used by
 	the distribution handler to redistribute the data only for nodes that have changed
 */
-func (chr *ConsistentHashingRing) DeleteNode(node types.Node) map[string][]string {
+func (chr *ConsistentHashingRing) DeleteNode(node *types.Node) map[string][]string {
+	// TODO : We should update the code to not remove the node that is maintaining 
+	// this ring view 
+
 	chr.mu.Lock()
 	defer chr.mu.Unlock()
 
@@ -144,7 +155,7 @@ func removeFromSlice[T comparable](slice []T, value T) []T {
 }
 
 // Public Method: Get Nodes (returns multiple nodes for replication)
-func (chr *ConsistentHashingRing) GetRecordsReplicas(key string) ( uint64, []types.Node){
+func (chr *ConsistentHashingRing) GetRecordsReplicas(key string) ( uint64, []*types.Node){
 	chr.mu.RLock()
 	defer chr.mu.RUnlock()
 
@@ -165,7 +176,7 @@ func (chr *ConsistentHashingRing) GetRecordsReplicas(key string) ( uint64, []typ
 
 	numOfNodesToReturn := min(numNodes, chr.numReplicas)
 
-	var nodes []types.Node
+	var nodes []*types.Node
 	i := 0
 	for len(nodes) < numOfNodesToReturn {
 		currentIdx := (idx + i) % len(chr.sortedKeys)
@@ -182,8 +193,11 @@ func (chr *ConsistentHashingRing) GetRecordsReplicas(key string) ( uint64, []typ
 	return hashKey, nodes
 }
 
-// util function to check if a node is already in the list
-func containsNode(nodes []types.Node, node types.Node) bool {
+// Utility function to check that the ring does not contain a node 
+// to be used only in Ring functions (hence private), methods calling 
+// this function should have a lock on the ring
+// Uses the node ID to check for equality
+func containsNode(nodes []*types.Node, node *types.Node) bool {
 	for _, n := range nodes {
 		if n.ID == node.ID {
 			return true
@@ -192,6 +206,8 @@ func containsNode(nodes []types.Node, node types.Node) bool {
 	return false
 }
 
+// Public methods for other packages to check if the ring contains a node 
+// This function should not be called inside a method that already has a lock on the ring
 func (chr *ConsistentHashingRing) DoesRingContainNode(node *types.Node) bool {
 	chr.mu.RLock()
 	defer chr.mu.RUnlock()
@@ -202,15 +218,6 @@ func (chr *ConsistentHashingRing) DoesRingContainNode(node *types.Node) bool {
 		}
 	}
 	return false
-}
-
-func (chr *ConsistentHashingRing) getNextKey(key uint64) uint64 {
-	idx := sort.Search(len(chr.sortedKeys), func(i int) bool {
-		return chr.sortedKeys[i] >= key
-	})
-
-	idx = (idx + 1) % len(chr.sortedKeys)
-	return chr.sortedKeys[idx]
 }
 
 func (chr *ConsistentHashingRing) GetTokenRangeForNode(nodeID string) []TokenRange {
@@ -246,20 +253,29 @@ func (chr *ConsistentHashingRing) updateTokenRangesToNodeID() {
 		currentKey := chr.sortedKeys[i]
 		currentNode := chr.ring[currentKey]
 
-		nextKey := chr.getNextKey(currentKey)
-
-		tokenRange := fmt.Sprintf("%d:%d", currentKey, nextKey)
-
-		mapTokenRangesToNodeID[tokenRange] = []string{currentNode.ID}
-
 		// Assign replicas from the previous numReplicas keys
-		for replica := 1; replica <= chr.numReplicas ; replica++ {
+		for replica := 1; replica <= chr.numReplicas + 1 ; replica++ {
 			replicaIndex := (i - replica + len(chr.sortedKeys)) % len(chr.sortedKeys)
 			replicaKey := chr.sortedKeys[replicaIndex]
-			replicaNode := chr.ring[replicaKey]
 
-			// Append the replica node ID to the token range's list
-			mapTokenRangesToNodeID[tokenRange] = append(mapTokenRangesToNodeID[tokenRange], replicaNode.ID)
+			tokenRange := fmt.Sprintf("%d:%d",replicaKey, currentKey)
+			_, tokenRangeExists := mapTokenRangesToNodeID[tokenRange]
+			if !tokenRangeExists {
+				mapTokenRangesToNodeID[tokenRange] = []string{currentNode.ID}
+			}else {
+				found := false
+				for _, nodeID := range mapTokenRangesToNodeID[tokenRange] {
+					if nodeID == currentNode.ID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					mapTokenRangesToNodeID[tokenRange] = append(mapTokenRangesToNodeID[tokenRange], currentNode.ID)
+				}
+			}
+
+			currentKey = replicaKey
 		}
 	}
 
@@ -267,7 +283,7 @@ func (chr *ConsistentHashingRing) updateTokenRangesToNodeID() {
 }
 
 
-func (chr *ConsistentHashingRing) GetRingMembers() []types.Node {
+func (chr *ConsistentHashingRing) GetRingMembers() []*types.Node {
 	chr.mu.RLock()
 	defer chr.mu.RUnlock()
 

@@ -68,7 +68,7 @@ func HandleRecordsFetchByHashKey(nodeId string, partitionKey ring.TokenRange) ([
 			return nil, fmt.Errorf("failed to parse hashkey: %w", err)
 		}
 
-		if hashKey >= partitionKey.Start && hashKey < partitionKey.End {
+		if hashKey > partitionKey.Start && hashKey <= partitionKey.End {
 			data := map[string]string{ 
 				"page_id": event.PageId, 
 				"component_id": event.ComponentId, 
