@@ -20,25 +20,25 @@ func HandleDelete(nodeId string, req *pb.DeleteRequest) error {
 		// File exists, read the existing data
 		file, err := os.Open(filename)
 		if err != nil {
-			return fmt.Errorf("failed to open file: %w", err)
+			return fmt.Errorf("[%s] Failed to open file: %w", nodeId, err)
 		}
 		defer file.Close()
 
 		data, err := io.ReadAll(file)
 		if err != nil {
-			return fmt.Errorf("failed to read file: %w", err)
+			return fmt.Errorf("[%s] Failed to read file: %w", nodeId, err)
 		}
 
 		if len(data) > 0 {
 			if err := json.Unmarshal(data, &rows); err != nil {
-				return fmt.Errorf("failed to unmarshal JSON: %w", err)
+				return fmt.Errorf("[%s] Failed to unmarshal JSON: %w", nodeId, err)
 			}
 		}
 	} else if os.IsNotExist(err) {
 		// File does not exist, nothing to delete
-		return fmt.Errorf("data file does not exist")
+		return fmt.Errorf("[%s] Data file does not exist", nodeId)
 	} else {
-		return fmt.Errorf("failed to check file existence: %w", err)
+		return fmt.Errorf("[%s] Failed to check file existence: %w", nodeId, err)
 	}
 
 	// Filter out the rows that match the delete criteria
@@ -69,13 +69,13 @@ func HandleDelete(nodeId string, req *pb.DeleteRequest) error {
 	// Write the updated data back to the file
 	file, err := os.Create(filename)
 	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
+		return fmt.Errorf("[%s] Failed to create file: %w", nodeId, err)
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	if err := encoder.Encode(updatedRows); err != nil {
-		return fmt.Errorf("failed to encode JSON: %w", err)
+		return fmt.Errorf("[%s] Failed to encode JSON: %w", nodeId, err)
 	}
 
 	return nil

@@ -15,19 +15,19 @@ func HandleRead(nodeId string, req *pb.ReadRequest) ([]Row, error) {
 	filename := fmt.Sprintf("./internal/data/%s.json", nodeId)
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
+		return nil, fmt.Errorf("[%s] Failed to open file: %w", nodeId, err)
 	}
 	defer file.Close()
 
 	byteValue, err := io.ReadAll(file)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, fmt.Errorf("[%s] Failed to read file: %w",nodeId, err)
 	}
 
 	var rows []Row
 	err = json.Unmarshal(byteValue, &rows)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+		return nil, fmt.Errorf("[%s] Failed to unmarshal JSON: %w",nodeId, err)
 	}
 
 	var result []Row
@@ -44,19 +44,19 @@ func HandleRecordsFetchByHashKey(nodeId string, partitionKey ring.TokenRange) ([
 	filename := fmt.Sprintf("./internal/data/%s.json", nodeId)
 	file, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
+		return nil, fmt.Errorf("[%s] Failed to open file: %w", nodeId, err)
 	}
 	defer file.Close()
 
 	byteValue, err := io.ReadAll(file)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, fmt.Errorf("[%s] Failed to read file: %w", nodeId, err)
 	}
 
 	var rows []Row
 	err = json.Unmarshal(byteValue, &rows)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+		return nil, fmt.Errorf("[%s] Failed to unmarshal JSON: %w", nodeId, err)
 	}
 
 	var result []*pb.RowData
@@ -65,7 +65,7 @@ func HandleRecordsFetchByHashKey(nodeId string, partitionKey ring.TokenRange) ([
 		hashKey, err := strconv.ParseUint(event.HashKey, 10, 64)
 
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse hashkey: %w", err)
+			return nil, fmt.Errorf("[%s] Failed to parse hashkey: %w", nodeId, err)
 		}
 
 		if hashKey > partitionKey.Start && hashKey <= partitionKey.End {
