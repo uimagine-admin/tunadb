@@ -97,7 +97,7 @@ func (g *GossipHandler) gossip(ctx context.Context, gossipFanOut int) {
 		message := g.createGossipMessage()
 		address :=  targetNode.IPAddress + ":" + strconv.FormatUint(targetNode.Port, 10)
 
-		logCreatedGossipMessage(targetNode.ID, message)
+		// logCreatedGossipMessage(targetNode.ID, message)
 
 		// Handle the sending of the message and receiving of response asynchronously
 		go func(ctx *context.Context, address string, message *pb.GossipMessage) {
@@ -156,7 +156,7 @@ func (g *GossipHandler) createGossipMessage() *pb.GossipMessage {
 
 // HandleGossipMessage processes an incoming gossip message.
 func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipMessage) (*pb.GossipAck, error) {
-	logReceivedGossipMessage(g.NodeInfo.ID,req)
+	// logReceivedGossipMessage(g.NodeInfo.ID,req)
 
 	// Deduplication: Check if message was already seen
 	messageID := req.MessageCreator + req.MessageCreateTime
@@ -247,7 +247,7 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 			
 			// Handle the sending of the message and receiving of response asynchronously
 			go func(ctx *context.Context, targetNodeAddress string, req *pb.GossipMessage) {
-				logPropagatedGossipMessage(targetNode.ID, req)
+				// logPropagatedGossipMessage(targetNode.ID, req)
 				err := communication.SendGossipMessage(ctx, targetNodeAddress, req)
 				if err != nil {
 					log.Printf("[%s] Error propagating gossip to node %s with %d; %v\n", g.NodeInfo.ID ,targetNode.Name, err, i)

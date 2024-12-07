@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	pb "github.com/uimagine-admin/tunadb/api"
@@ -12,7 +13,11 @@ import (
 )
 
 func HandleRead(nodeId string, req *pb.ReadRequest) ([]Row, error) {
-	filename := fmt.Sprintf("./internal/data/%s.json", nodeId)
+	basePath := os.Getenv("DATA_PATH")
+	if basePath == "" {
+		basePath = "./internal/db/internal/data/"
+	}
+	filename := filepath.Join(basePath, fmt.Sprintf("%s.json", nodeId))
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] Failed to open file: %w", nodeId, err)
@@ -41,7 +46,11 @@ func HandleRead(nodeId string, req *pb.ReadRequest) ([]Row, error) {
 }
 
 func HandleRecordsFetchByHashKey(nodeId string, partitionKey ring.TokenRange) ([]*pb.RowData, error) {
-	filename := fmt.Sprintf("./internal/data/%s.json", nodeId)
+	basePath := os.Getenv("DATA_PATH")
+	if basePath == "" {
+		basePath = "./internal/db/internal/data/"
+	}
+	filename := filepath.Join(basePath, fmt.Sprintf("%s.json", nodeId))
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] Failed to open file: %w", nodeId, err)

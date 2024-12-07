@@ -250,32 +250,32 @@ func (chr *ConsistentHashingRing) updateTokenRangesToNodeID() {
 
 	for i := 0; i < len(chr.sortedKeys); i++ {
 		currentKey := chr.sortedKeys[i]
-		currentNode := chr.ring[currentKey]
+		nextKey := chr.sortedKeys[(i+1)%len(chr.sortedKeys)]
 
-		// Assign replicas from the previous numReplicas keys
-		for replica := 1; replica <= chr.numReplicas + 1 ; replica++ {
-			replicaIndex := (i - replica + len(chr.sortedKeys)) % len(chr.sortedKeys)
-			replicaKey := chr.sortedKeys[replicaIndex]
+		tokenRange := fmt.Sprintf("%d:%d", currentKey, nextKey)
+	
+		numOfNodesToReturn := min(len(chr.uniqueNodes), chr.numReplicas)
 
-			tokenRange := fmt.Sprintf("%d:%d",replicaKey, currentKey)
-			_, tokenRangeExists := mapTokenRangesToNodeID[tokenRange]
-			if !tokenRangeExists {
-				mapTokenRangesToNodeID[tokenRange] = []string{currentNode.ID}
-			}else {
-				found := false
-				for _, nodeID := range mapTokenRangesToNodeID[tokenRange] {
-					if nodeID == currentNode.ID {
-						found = true
-						break
-					}
-				}
-				if !found {
-					mapTokenRangesToNodeID[tokenRange] = append(mapTokenRangesToNodeID[tokenRange], currentNode.ID)
-				}
+		var nodes []*types.Node
+		j := 1
+		for len(nodes) < numOfNodesToReturn {
+			currentIdx := (i + j) % len(chr.sortedKeys)
+			hashAtIdx := chr.sortedKeys[currentIdx]
+			node := chr.ring[hashAtIdx]
+	
+			// check for duplicates, so a virtual node is not returned
+			if !containsNode(nodes, node) {
+				nodes = append(nodes, node)
 			}
-
-			currentKey = replicaKey
+			j++
 		}
+
+		var nodeIDs []string
+		for _, node := range nodes {
+			nodeIDs = append(nodeIDs, node.ID)
+		}
+	
+		mapTokenRangesToNodeID[tokenRange] = nodeIDs
 	}
 
 	chr.mapTokenRangesToNodeIDs = mapTokenRangesToNodeID

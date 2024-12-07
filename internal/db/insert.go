@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -11,7 +12,11 @@ import (
 )
 
 func HandleInsert(nodeId string, req *pb.WriteRequest) error {
-	filename := fmt.Sprintf("./internal/data/%s.json", nodeId)
+	basePath := os.Getenv("DATA_PATH")
+	if basePath == "" {
+		basePath = "./internal/db/internal/data/"
+	}
+	filename := filepath.Join(basePath, fmt.Sprintf("%s.json", nodeId))
 
 	var rows []Row
 

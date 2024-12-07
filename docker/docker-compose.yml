@@ -36,6 +36,7 @@ services:
       PEER_NODES: "cassandra-node2:50051,cassandra-node3:50051,cassandra-node4:50051"
       ID: "node-1"
       INTERNAL_PORT: "50051"
+      DATA_PATH: "./internal/db/internal/data/"
     ports:
       - "50051:50051" # Expose for external access, use 50051 internally
     networks:
@@ -51,6 +52,7 @@ services:
       PEER_NODES: "cassandra-node1:50051,cassandra-node3:50051,cassandra-node4:50051"
       ID: "node-2"
       INTERNAL_PORT: "50051" # Internal port
+      DATA_PATH: "./internal/db/internal/data/"
     ports:
       - "50052:50051" # External port 50052, but internally still 50051
     networks:
@@ -66,6 +68,7 @@ services:
       PEER_NODES: "cassandra-node1:50051,cassandra-node2:50051,cassandra-node4:50051"
       ID: "node-3"
       INTERNAL_PORT: "50051"
+      DATA_PATH: "./internal/db/internal/data/"
     ports:
       - "50053:50051" # External port 50053, but internally still 50051
     networks:
@@ -81,6 +84,7 @@ services:
       PEER_NODES: "cassandra-node1:50051,cassandra-node2:50051,cassandra-node3:50051"
       ID: "node-4"
       INTERNAL_PORT: "50051"
+      DATA_PATH: "./internal/db/internal/data/"
     ports:
       - "50054:50051" # External port 50053, but internally still 50051
     networks:
