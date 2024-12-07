@@ -114,7 +114,12 @@ func (m *Membership) AddOrUpdateNode(incomingNode *types.Node, chr *chr.Consiste
 			// TODO: What happens when the ring was not updated properly after last failure ? 
 			log.Printf("[%s] Node already exists in ring: %s\n", m.currentNode.ID, incomingNode.String())
 			log.Printf("[%s] Ring: %v\n", m.currentNode.ID, chr.String())
-			log.Fatalf("[%s] Node exists in ring but not in membership: %s\n", m.currentNode.ID, incomingNode.String())
+			// log.Fatalf("[%s] Node exists in ring but not in membership: %s\n", m.currentNode.ID, incomingNode.String())
+			chr.DeleteNode(incomingNode)
+			log.Printf("[%s] Ring after Removing the dead node: %v\n", m.currentNode.ID, chr.String())
+			oldKeyRanges := chr.AddNode(incomingNode)
+			mapNodeIdsToOldKeyRanges := convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(oldKeyRanges)
+			m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
 		}
 
 	}
