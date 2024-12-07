@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -30,8 +31,9 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 			// TODO: ERROR HANDLING - @jaytaykay
 			log.Printf("error: %s\n", err)
 		}
-		columns := []string{"Date", "PageId", "Event", "ComponentId"}
-		values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
+		tokenStr := strconv.FormatUint(req.HashKey, 10)
+		columns := []string{"Date", "PageId", "Event", "ComponentId", "HashKey"}
+		values := []string{req.Date, req.PageId, req.Event, req.ComponentId, tokenStr}
 		log.Printf("writing rows and cols to db %s , %s\n", values, columns)
 		//write to commitlog->memtable-->SStable
 
@@ -45,6 +47,10 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 		//if incoming is from client:
 		ring := h.GetRing()
 		token, replicas := ring.GetRecordsReplicas(req.PageId)
+		// Add the token to the request, so the coordinator and the nodes can easily look up values 
+		// during redistribution
+		tokenStr := strconv.FormatUint(token, 10)
+		req.HashKey = token
 		if len(replicas) == 0 {
 			return &pb.WriteResponse{}, errors.New("no available node for key")
 		}
@@ -59,8 +65,8 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 				if err != nil {
 					log.Printf("error: %s\n", err)
 				}
-				columns := []string{"Date", "PageId", "Event", "ComponentId"}
-				values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
+				columns := []string{"Date", "PageId", "Event", "ComponentId", "HashKey"}
+				values := []string{req.Date, req.PageId, req.Event, req.ComponentId,tokenStr }
 				log.Printf("writing rows and cols to db %s , %s\n", values, columns)
 
 				resultsChan <- &pb.WriteResponse{
