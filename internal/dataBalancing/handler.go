@@ -31,7 +31,7 @@ func (dh *DistributionHandler) HandleDataSync(ctx context.Context, req *pb.SyncD
 		// Insert data into the local node's storage
 		hashedKeyString , keyFound := row.Data["hashKey"]
 		if !keyFound {
-			log.Printf("Hash key not found in data record: %v", row.Data)
+			log.Printf("[%s] Hash key not found in data record: %v", dh.CurrentNode.ID, row.Data)
 			return nil, nil
 		}
 
@@ -53,7 +53,7 @@ func (dh *DistributionHandler) HandleDataSync(ctx context.Context, req *pb.SyncD
 		})
 
 		if err != nil {
-			log.Printf("Failed to insert data into JSON: %v", err)
+			log.Printf("[%s] Failed to insert data into JSON: %v", dh.CurrentNode.ID, err)
 			return nil, err
 		}
 	}
@@ -97,13 +97,13 @@ func (dh *DistributionHandler) sendDataForTokenRange(replica *types.Node, tokenR
 
 	dataRows, err := db.HandleRecordsFetchByHashKey(dh.CurrentNode.ID, tokenRange)
 	if err != nil {
-		// log.Printf("[%s] Failed to fetch data for TokenRange %v-%v: %v", dh.CurrentNode.ID, tokenRange.Start, tokenRange.End, err)
+		log.Printf("[%s] Failed to fetch data for TokenRange %v-%v: %v", dh.CurrentNode.ID, tokenRange.Start, tokenRange.End, err)
 		return 
 	}
 
 	// Establish gRPC connection to new owner
 	if replica == nil {
-		// log.Printf("[%s] No new owner found for TokenRange %v-%v", dh.CurrentNode.ID, tokenRange.Start, tokenRange.End)
+		log.Printf("[%s] No new owner found for TokenRange %v-%v", dh.CurrentNode.ID, tokenRange.Start, tokenRange.End)
 		return
 	}
 
@@ -111,7 +111,7 @@ func (dh *DistributionHandler) sendDataForTokenRange(replica *types.Node, tokenR
 
 	conn, err := grpc.Dial(replicasAddress, grpc.WithInsecure()) // Replace with secure connection in production
 	if err != nil {
-		// log.Printf("[%s] Failed to connect to new owner %s: %v", dh.CurrentNode.ID, replica.String(), err)
+		log.Printf("[%s] Failed to connect to new owner %s: %v", dh.CurrentNode.ID, replica.String(), err)
 		return
 	}
 	defer conn.Close()
@@ -121,7 +121,7 @@ func (dh *DistributionHandler) sendDataForTokenRange(replica *types.Node, tokenR
 	// Create gRPC stream
 	stream, err := client.SyncData(context.Background())
 	if err != nil {
-		// log.Printf("[%s] Failed to open stream to new owner: %v", dh.CurrentNode.ID, err)
+		log.Printf("[%s] Failed to open stream to new owner: %v", dh.CurrentNode.ID, err)
 		return
 	}
 
@@ -131,13 +131,13 @@ func (dh *DistributionHandler) sendDataForTokenRange(replica *types.Node, tokenR
 		Data:   dataRows,
 	}
 	if err := stream.Send(req); err != nil {
-		// log.Printf("[%s] Failed to send data row: %v", dh.CurrentNode.ID, err)
+		log.Printf("[%s] Failed to send data row: %v", dh.CurrentNode.ID, err)
 		return
 	}
 
 	// Close the send direction of the stream
 	if err := stream.CloseSend(); err != nil {
-		// log.Printf("[%s] Error closing stream: %v", dh.CurrentNode.ID, err)
+		log.Printf("[%s] Error closing stream: %v", dh.CurrentNode.ID, err)
 		return
 	}
 
