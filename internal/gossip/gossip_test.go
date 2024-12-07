@@ -150,7 +150,7 @@ func TestGossipProtocolIntegration(t *testing.T) {
 	defer log.Println("TestGossipProtocolIntegration completed")
 	defer stopServers(servers, cancelContexts)
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	// Step 6: Verify membership consistency across all nodes
 	expectedClusterSize := len(nodes) // All nodes except the current node
@@ -164,7 +164,7 @@ func TestGossipProtocolIntegration(t *testing.T) {
 		// Get all nodes in the membership
 		members := gossipHandlers[i].Membership.GetAllNodes()
 		for _, member := range members {
-			assert.True(t, nodeRings[0].DoesRingContainNode(member), "Node[%s] Node with ID %s not found in ring", gossipHandlers[i].NodeInfo.ID, member.ID)
+			assert.True(t, nodeRings[0].DoesRingContainNode(member), "[%s] Node with ID %s not found in ring", gossipHandlers[i].NodeInfo.ID, member.ID)
 		}
 	}
 
@@ -234,7 +234,7 @@ func TestAddNodesToStableSystem(t *testing.T) {
 		}
 
 		// Assert that the node with ID "Node_5" exists in the handler's membership
-		assert.True(t, found, "Node[%s] Node with ID %s not found in membership", handler.NodeInfo.ID, newNodeID)
+		assert.True(t, found, "[%s] Node with ID %s not found in membership", handler.NodeInfo.ID, newNodeID)
 	}
 
 	// Step 6: Verify that the new node is present in the ring, and all existing nodes are present in the new node's ring
@@ -244,7 +244,7 @@ func TestAddNodesToStableSystem(t *testing.T) {
 		// Get all nodes in the membership
 		members := existingGossipHandler.Membership.GetAllNodes()
 		for _, member := range members {
-			assert.True(t, nodeRings[i].DoesRingContainNode(member), "Node[%s] Node with ID %s not found in ring", existingGossipHandlers[i].NodeInfo.ID, member.ID)
+			assert.True(t, nodeRings[i].DoesRingContainNode(member), "[%s] Node with ID %s not found in ring", existingGossipHandlers[i].NodeInfo.ID, member.ID)
 		}
 	}
 }
@@ -289,9 +289,9 @@ func TestRemoveUnresponsiveNode(t *testing.T){
 		members := handler.Membership.GetAllNodes()
 		for _, member := range members {
 			if member.Status == types.NodeStatusDead {
-				assert.False(t, nodeRings[i].DoesRingContainNode(member), "Node[%s] Node with ID %s still found in ring", handler.NodeInfo.ID, member.ID)
+				assert.False(t, nodeRings[i].DoesRingContainNode(member), "[%s] Node with ID %s still found in ring", handler.NodeInfo.ID, member.ID)
 			} else {
-				assert.True(t, nodeRings[i].DoesRingContainNode(member), "Node[%s] Node with ID %s not found in ring", handler.NodeInfo.ID, member.ID)
+				assert.True(t, nodeRings[i].DoesRingContainNode(member), "[%s] Node with ID %s not found in ring", handler.NodeInfo.ID, member.ID)
 			}
 		}
 	}

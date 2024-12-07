@@ -35,7 +35,7 @@ func (n *Node) String() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return fmt.Sprintf("Node[ID=%s, Name=%s, IP=%s, Port=%d, Status=%s, LastUpdated=%s]",
-		n.ID, n.Name, n.IPAddress, n.Port, n.Status, n.LastUpdated.Format(time.RFC3339))
+		n.ID, n.Name, n.IPAddress, n.Port, n.Status, n.LastUpdated.Format(time.RFC3339Nano))
 }
 
 // UpdateStatus updates the node's status and timestamp for the last update.

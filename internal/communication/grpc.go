@@ -73,7 +73,11 @@ func CheckWriteIsFromNode(req *pb.WriteRequest) bool {
 	}
 }
 
-// sendGossipMessage sends a gossip message to a target node using gRPC.
+/*
+	sendGossipMessage sends a gossip message to a target node using gRPC.
+	Args: 
+		address: Refers the full address of <ip_address>:<port>
+*/
 func SendGossipMessage(Ctx *context.Context, address string, req *pb.GossipMessage) error {
 	//test
 	// log.Printf("sending gossip message to %s \n", address)
