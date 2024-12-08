@@ -26,7 +26,7 @@ import (
 func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
 	//if incoming is from node:
 	if req.NodeType == "IS_NODE" {
-		err := db.HandleInsert(h.GetNode().ID, req)
+		err := db.HandleInsert(h.GetNode().ID, req, h.absolutePathSaveDir)
 		if err != nil {
 			// TODO: ERROR HANDLING - @jaytaykay
 			log.Printf("error: %s\n", err)
@@ -61,7 +61,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 		// for each replica: i'll send an internal write request
 		for _, replica := range replicas {
 			if replica.Name == os.Getenv("NODE_NAME") {
-				err := db.HandleInsert(h.GetNode().ID, req)
+				err := db.HandleInsert(h.GetNode().ID, req, h.absolutePathSaveDir)
 				if err != nil {
 					log.Printf("error: %s\n", err)
 				}

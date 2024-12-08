@@ -9,9 +9,14 @@ import (
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/types"
+	"github.com/uimagine-admin/tunadb/internal/utils"
 )
 
 func TestHandleInsert(t *testing.T) {
+	nodeID0 := "node-0"
+	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeID0)
+	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
+
 	for i := 0; i < 100; i++ {
 		req := &pb.WriteRequest{
 			PageId:      fmt.Sprintf("page%d", i),
@@ -19,13 +24,17 @@ func TestHandleInsert(t *testing.T) {
 			Event:       "hover",
 			Date: time.Now().Format(time.RFC3339Nano),
 		}
-		err := HandleInsert("0", req)
+		err := HandleInsert(nodeID0, req, absolutePathSaveDir)
 		if err != nil {
 			t.Errorf("HandleInsert failed for nodeId=0: %s", err)
 		} else {
 			log.Println("HandleInsert succeeded for nodeId=0")
 		}
 	}
+
+	nodeID1 := "node-0"
+	relativePathSaveDir1 := fmt.Sprintf("internal/data/%s.json", nodeID1)
+	absolutePathSaveDir1 := utils.GetPath(relativePathSaveDir1)
 
 	for i := 0; i < 100; i++ {
 		req := &pb.WriteRequest{
@@ -34,7 +43,7 @@ func TestHandleInsert(t *testing.T) {
 			Event:       "click",
 			Date: time.Now().Format(time.RFC3339Nano),
 		}
-		err := HandleInsert("1", req)
+		err := HandleInsert(nodeID1, req, absolutePathSaveDir1)
 		if err != nil {
 			t.Errorf("HandleInsert failed for nodeId=1: %s", err)
 		} else {
@@ -165,6 +174,10 @@ func TestHandleInsert2(t *testing.T){
 		  },
 	}
 
+	nodeIDA := nodeA.ID
+	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeIDA)
+	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
+
 	for _, row := range nodeAData {
 		hashKey, errParse := strconv.ParseUint(row["hashKey"], 10, 64)
 		if errParse != nil {
@@ -178,7 +191,7 @@ func TestHandleInsert2(t *testing.T){
 			HashKey:      hashKey,
 			NodeType:     "IS_NODE",
 			Name:         "NodeA",
-		})
+		},absolutePathSaveDir)
 		if err != nil {
 			t.Errorf("Failed to insert data: %v", err)
 		}

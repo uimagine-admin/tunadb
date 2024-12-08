@@ -20,7 +20,7 @@ import (
 func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
 	if req.NodeType == "IS_NODE" {
 		var rowResults []*pb.RowData
-		rows, err := db.HandleRead(h.GetNode().ID, req)
+		rows, err := db.HandleRead(h.GetNode().ID, req, h.absolutePathSaveDir)
 		if err != nil {
 			log.Printf("Error reading row: %s , error: %s\n", rows, err)
 			return &pb.ReadResponse{}, err
@@ -61,7 +61,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			// if the replica is the current node, skip it
 			if replica.Name == os.Getenv("NODE_NAME") {
 				var rowResults []*pb.RowData
-				rows, err := db.HandleRead(h.GetNode().ID, req)
+				rows, err := db.HandleRead(h.GetNode().ID, req, h.absolutePathSaveDir)
 				if err != nil {
 					log.Printf("Error reading row: %s , error: %s\n", rows, err)
 					return &pb.ReadResponse{}, err

@@ -17,6 +17,7 @@ import (
 	"github.com/uimagine-admin/tunadb/internal/gossip"
 	"github.com/uimagine-admin/tunadb/internal/ring"
 	"github.com/uimagine-admin/tunadb/internal/types"
+	"github.com/uimagine-admin/tunadb/internal/utils"
 	"google.golang.org/grpc"
 )
 
@@ -29,6 +30,7 @@ type server struct {
 
 var portInternal = os.Getenv("INTERNAL_PORT")
 var peerAddresses = getPeerAddresses()
+var absoluteSavePath string
 
 // handle incoming read request
 func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
@@ -41,7 +43,7 @@ func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadRespons
 	portnum, _ := strconv.ParseUint(portInternal, 10, 64)
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
-	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode)
+	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
 	ctx_read, _ := context.WithTimeout(context.Background(), time.Second)
 
 	//call read_path
@@ -65,7 +67,7 @@ func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResp
 	portnum, _ := strconv.ParseUint(portInternal, 10, 64)
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
-	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode)
+	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
 	//call write_path
 	ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
 	resp, err := c.Write(ctx_write, req)
@@ -122,7 +124,7 @@ func (s *server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteR
 	var portnum, _ = strconv.ParseUint("50051", 10, 64)
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
-	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode)
+	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
 	//call delete_path
 	ctx_delete, _ := context.WithTimeout(context.Background(), time.Second)
 	resp, err := c.Delete(ctx_delete, req)
@@ -142,6 +144,9 @@ func main() {
 	nodeID := os.Getenv("ID")
 	port, _ := strconv.ParseUint(portInternal, 10, 64)
 
+	relativePathSaveDir := fmt.Sprintf("../../internal/db/internal/data/%s.json", nodeID)
+	absoluteSavePath = utils.GetPath(relativePathSaveDir)
+
 	// Initialize the current node and gossip handler
 	currentNode := &types.Node{
 		ID:   nodeID,
@@ -156,16 +161,13 @@ func main() {
 	ring := ring.CreateConsistentHashingRing(currentNode, 3, 2)
 
 	// Initialize the data distribution handler
-	distributionHandler := dataBalancing.DistributionHandler{
-		Ring: ring,
-		CurrentNode: currentNode,
-	}
+	distributionHandler := dataBalancing.NewDistributionHandler(ring, currentNode, absoluteSavePath)
 
 	// Adjust Fanout, timeouts, and interval as needed
 	gossipFanOut := 2
 	gossipTimeout := 8
 	gossipInterval := 3
-	gossipHandler := gossip.NewGossipHandler(currentNode, ring, gossipFanOut, gossipTimeout, gossipInterval, &distributionHandler) 
+	gossipHandler := gossip.NewGossipHandler(currentNode, ring, gossipFanOut, gossipTimeout, gossipInterval, distributionHandler) 
 
 	// Add peers to the membership list
 	for _, address := range peerAddresses {
@@ -182,7 +184,7 @@ func main() {
 	}
 
 	// Start gRPC server
-	go StartServer(ring ,gossipHandler, &distributionHandler)
+	go StartServer(ring ,gossipHandler, distributionHandler)
 
 	// Start the gossip protocol
 	go gossipHandler.Start(context.Background(), 2)

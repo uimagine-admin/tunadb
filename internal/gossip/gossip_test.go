@@ -14,6 +14,7 @@ import (
 	"github.com/uimagine-admin/tunadb/internal/gossip"
 	rp "github.com/uimagine-admin/tunadb/internal/ring"
 	"github.com/uimagine-admin/tunadb/internal/types"
+	"github.com/uimagine-admin/tunadb/internal/utils"
 	"google.golang.org/grpc"
 )
 
@@ -77,12 +78,11 @@ func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationF
 
 	// Step 1: Initialize the cluster with a consistent hashing ring
 	for i := 0; i < numNodes; i++ {
+		relativePathSaveDir := fmt.Sprintf("../db/internal/data/%s.json", nodes[i].ID)
+		absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 		ringView := rp.CreateConsistentHashingRing(nodes[i], numberOfVirtualNodes, replicationFactor)
 		nodeRings[i] = ringView
-		dataHandler := &dataBalancing.DistributionHandler{
-			Ring: ringView,
-			CurrentNode: nodes[i],
-		}
+		dataHandler := dataBalancing.NewDistributionHandler(ringView, nodes[i], absolutePathSaveDir)
 		dataHandlers[i] = dataHandler
 	}
 
@@ -194,11 +194,12 @@ func TestAddNodesToStableSystem(t *testing.T) {
 		Name:   fmt.Sprintf("localhost:%d", 9003),
 		Status: types.NodeStatusAlive,
 	}
+	relativePathSaveDir := fmt.Sprintf("../db/internal/data/%s.json", newNode.ID)
+	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
+
 	newNodeRing := rp.CreateConsistentHashingRing(newNode,10, 3)
-	dataHandler := &dataBalancing.DistributionHandler{
-		Ring: newNodeRing,
-		CurrentNode: newNode,
-	}
+	dataHandler := dataBalancing.NewDistributionHandler(newNodeRing, newNode, absolutePathSaveDir)
+	
 	newNodeHandler := gossip.NewGossipHandler(newNode,newNodeRing,gossipFanOut,suspectToDeadTimeout, gossipInterval, dataHandler)
 	newServer, newServerErr := StartNode(newNodeHandler)
 	if newServerErr != nil {

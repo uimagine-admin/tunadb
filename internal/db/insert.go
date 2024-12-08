@@ -4,26 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 )
 
-func HandleInsert(nodeId string, req *pb.WriteRequest) error {
-	basePath := os.Getenv("DATA_PATH")
-	if basePath == "" {
-		basePath = "./internal/db/internal/data/"
-	}
-	filename := filepath.Join(basePath, fmt.Sprintf("%s.json", nodeId))
-
+func HandleInsert(nodeId string, req *pb.WriteRequest, absolutePathSaveDir string) error {
 	var rows []Row
-
 	// Check if the file exists
-	if _, err := os.Stat(filename); err == nil {
+	if _, err := os.Stat(absolutePathSaveDir); err == nil {
 		// File exists, read the existing data
-		file, err := os.Open(filename)
+		file, err := os.Open(absolutePathSaveDir)
 		if err != nil {
 			return fmt.Errorf("[%s] Failed to open file: %w", nodeId, err)
 		}
@@ -68,7 +60,7 @@ func HandleInsert(nodeId string, req *pb.WriteRequest) error {
 	rows = append(rows, newEvent)
 
 	// Write the updated data back to the file
-	file, err := os.Create(filename)
+	file, err := os.Create(absolutePathSaveDir)
 	if err != nil {
 		return fmt.Errorf("[%s] Failed to create file: %w", nodeId, err)
 	}

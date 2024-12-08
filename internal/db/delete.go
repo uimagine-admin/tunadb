@@ -10,15 +10,13 @@ import (
 	pb "github.com/uimagine-admin/tunadb/api"
 )
 
-func HandleDelete(nodeId string, req *pb.DeleteRequest) error {
-	filename := fmt.Sprintf("./internal/data/%s.json", nodeId)
-
+func HandleDelete(nodeId string, req *pb.DeleteRequest, absolutePathSaveDir string) error {
 	var rows []Row
 
 	// Check if the file exists
-	if _, err := os.Stat(filename); err == nil {
+	if _, err := os.Stat(absolutePathSaveDir); err == nil {
 		// File exists, read the existing data
-		file, err := os.Open(filename)
+		file, err := os.Open(absolutePathSaveDir)
 		if err != nil {
 			return fmt.Errorf("[%s] Failed to open file: %w", nodeId, err)
 		}
@@ -67,7 +65,7 @@ func HandleDelete(nodeId string, req *pb.DeleteRequest) error {
 	log.Printf("Deleted %d rows\n", len(rows)-len(updatedRows))
 
 	// Write the updated data back to the file
-	file, err := os.Create(filename)
+	file, err := os.Create(absolutePathSaveDir)
 	if err != nil {
 		return fmt.Errorf("[%s] Failed to create file: %w", nodeId, err)
 	}

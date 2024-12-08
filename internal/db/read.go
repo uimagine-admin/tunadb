@@ -5,20 +5,14 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/ring"
 )
 
-func HandleRead(nodeId string, req *pb.ReadRequest) ([]Row, error) {
-	basePath := os.Getenv("DATA_PATH")
-	if basePath == "" {
-		basePath = "./internal/db/internal/data/"
-	}
-	filename := filepath.Join(basePath, fmt.Sprintf("%s.json", nodeId))
-	file, err := os.Open(filename)
+func HandleRead(nodeId string, req *pb.ReadRequest, absolutePathSaveDir string) ([]Row, error) {
+	file, err := os.Open(absolutePathSaveDir)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] Failed to open file: %w", nodeId, err)
 	}
@@ -45,13 +39,8 @@ func HandleRead(nodeId string, req *pb.ReadRequest) ([]Row, error) {
 	return result, nil
 }
 
-func HandleRecordsFetchByHashKey(nodeId string, partitionKey ring.TokenRange) ([]*pb.RowData, error) {
-	basePath := os.Getenv("DATA_PATH")
-	if basePath == "" {
-		basePath = "./internal/db/internal/data/"
-	}
-	filename := filepath.Join(basePath, fmt.Sprintf("%s.json", nodeId))
-	file, err := os.Open(filename)
+func HandleRecordsFetchByHashKey(nodeId string, partitionKey ring.TokenRange, absolutePathSaveDir string) ([]*pb.RowData, error) {	
+	file, err := os.Open(absolutePathSaveDir)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] Failed to open file: %w", nodeId, err)
 	}

@@ -19,6 +19,16 @@ type DistributionHandler struct {
 	Ring *ring.ConsistentHashingRing
 	mu   sync.Mutex
 	CurrentNode *types.Node
+	absolutePathSaveDir string
+}
+
+// NewDistributionHandler creates a new DistributionHandler
+func NewDistributionHandler(ring *ring.ConsistentHashingRing, currentNode *types.Node, absolutePathSaveDir string) *DistributionHandler {
+	return &DistributionHandler{
+		Ring: ring,
+		CurrentNode: currentNode,
+		absolutePathSaveDir: absolutePathSaveDir,
+	}
 }
 
 // SyncData redistributes data based on updated ring state
@@ -50,7 +60,7 @@ func (dh *DistributionHandler) HandleDataSync(ctx context.Context, req *pb.SyncD
 			HashKey:      hashedKey,
 			NodeType:     "IS_NODE",
 			Name:         req.Sender,
-		})
+		}, dh.absolutePathSaveDir)
 
 		if err != nil {
 			log.Printf("[%s] Failed to insert data into JSON: %v", dh.CurrentNode.ID, err)
@@ -95,7 +105,7 @@ func (dh *DistributionHandler) TriggerDataRedistribution(oldTokenRanges map[stri
 func (dh *DistributionHandler) sendDataForTokenRange(replica *types.Node, tokenRange ring.TokenRange) {
 	// log.Printf("[%s] Sending data for TokenRange %v-%v to new owner...", dh.CurrentNode.ID ,tokenRange.Start, tokenRange.End)
 
-	dataRows, err := db.HandleRecordsFetchByHashKey(dh.CurrentNode.ID, tokenRange)
+	dataRows, err := db.HandleRecordsFetchByHashKey(dh.CurrentNode.ID, tokenRange, dh.absolutePathSaveDir)
 	if err != nil {
 		log.Printf("[%s] Failed to fetch data for TokenRange %v-%v: %v", dh.CurrentNode.ID, tokenRange.Start, tokenRange.End, err)
 		return 

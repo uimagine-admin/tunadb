@@ -1,22 +1,25 @@
 package db
 
 import (
+	"fmt"
 	"log"
 	"testing"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/ring"
+	"github.com/uimagine-admin/tunadb/internal/utils"
 )
 
 func TestHandleRead(t *testing.T) {
-	nodeId := "1"
-	log.Println("nodeId ", nodeId)
+	nodeId := "test_tokenRange"
+	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeId)
+	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 
 	req := &pb.ReadRequest{
 		PageId: "page2",
 	}
 
-	rows, err := HandleRead(nodeId, req)
+	rows, err := HandleRead(nodeId, req, absolutePathSaveDir)
 	if err != nil {
 		t.Fatalf("HandleRead failed: %s", err)
 	}
@@ -27,10 +30,14 @@ func TestHandleRead(t *testing.T) {
 }
 
 func TestFetchRecordsByHashKey(t *testing.T) {
+	nodeId := "test_tokenRange"
+	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeId)
+	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
+
 	rowData, err :=  HandleRecordsFetchByHashKey("test_tokenRange", ring.TokenRange{
 		Start: 0,
 		End:   2,
-	})
+	}, absolutePathSaveDir)
 
 	if err != nil {
 		t.Fatalf("HandleRecordsFetchByHashKey failed: %s", err)
@@ -101,10 +108,14 @@ func TestFetchRecordsByHashKey(t *testing.T) {
 }
 
 func TestFetchRecordsByHashKey2(t *testing.T) {
+	nodeId := "test_tokenRange"
+	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeId)
+	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
+
 	rowData, err :=  HandleRecordsFetchByHashKey("test_tokenRange", ring.TokenRange{
 		Start: 2,
 		End:   100,
-	})
+	},absolutePathSaveDir)
 
 	if err != nil {
 		t.Fatalf("HandleRecordsFetchByHashKey failed: %s", err)
@@ -195,7 +206,8 @@ func TestFetchRecordsByHashKey2(t *testing.T) {
 
 func TestHandleReadAfterInsert(t *testing.T) {
 	nodeId := "TestHandleReadAfterInsert"
-	log.Println("nodeId ", nodeId)
+	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeId)
+	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 
 	req := &pb.WriteRequest{
 		PageId:      "page2",
@@ -205,7 +217,7 @@ func TestHandleReadAfterInsert(t *testing.T) {
 		HashKey:     10,
 	}
 
-	err := HandleInsert(nodeId, req)
+	err := HandleInsert(nodeId, req, absolutePathSaveDir)
 	if err != nil {
 		t.Fatalf("HandleInsert failed: %s", err)
 	}
@@ -217,7 +229,7 @@ func TestHandleReadAfterInsert(t *testing.T) {
 		Name:     nodeId,
 		NodeType: "IS_NODE",
 	}
-	row, err := HandleRead(nodeId, readReq)
+	row, err := HandleRead(nodeId, readReq, absolutePathSaveDir)
 
 	if err != nil {
 		t.Fatalf("HandleRead failed: %s", err)
@@ -238,7 +250,8 @@ func TestHandleReadAfterInsert(t *testing.T) {
 
 func TestReadAfterDuplicateInsert(t *testing.T) {
 	nodeId := "TestReadAfterDuplicateInsert"
-	log.Println("nodeId ", nodeId)
+	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeId)
+	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 
 	req := &pb.WriteRequest{
 		PageId:      "page2",
@@ -248,12 +261,12 @@ func TestReadAfterDuplicateInsert(t *testing.T) {
 		HashKey:     11,
 	}
 
-	err := HandleInsert(nodeId, req)
+	err := HandleInsert(nodeId, req, absolutePathSaveDir)
 	if err != nil {
 		t.Fatalf("HandleInsert failed: %s", err)
 	}
 
-	err = HandleInsert(nodeId, req)
+	err = HandleInsert(nodeId, req, absolutePathSaveDir)
 	if err != nil {
 		t.Fatalf("HandleInsert failed: %s", err)
 	}
@@ -265,7 +278,7 @@ func TestReadAfterDuplicateInsert(t *testing.T) {
 		Name:     nodeId,
 		NodeType: "IS_NODE",
 	}
-	rows, err := HandleRead(nodeId, readReq)
+	rows, err := HandleRead(nodeId, readReq, absolutePathSaveDir)
 
 	if err != nil {
 		t.Fatalf("HandleRead failed: %s", err)
