@@ -78,7 +78,10 @@ func (chr *ConsistentHashingRing) calculateHash(key string) uint64 {
 
 /*
 	Public Method: Add Node
-	This methods is to add a node to the ring 
+	This methods is to add a node to the ring
+	
+	!Only the gossip and the ring package can call this function. 
+	Any other updates to the ring must be done via the membership method.
 
 	Returns: The old token ranges for each node before the new node was added, this can be used by
 	the distribution handler to redistribute the data only for nodes that have changed

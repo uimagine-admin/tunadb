@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log"
+	"os"
 	"strconv"
 	"sync"
 
@@ -20,14 +21,23 @@ type DistributionHandler struct {
 	mu   sync.Mutex
 	CurrentNode *types.Node
 	absolutePathSaveDir string
+	MaxBatchSize int
 }
 
 // NewDistributionHandler creates a new DistributionHandler
 func NewDistributionHandler(ring *ring.ConsistentHashingRing, currentNode *types.Node, absolutePathSaveDir string) *DistributionHandler {
+	maxBatchSize, err := strconv.ParseInt(os.Getenv("MAX_BATCH_SIZE"),10, 0)
+
+	if err != nil {
+		log.Printf("Failed to parse MAX_BATCH_SIZE: %v", err)
+		maxBatchSize = 100
+	}
+
 	return &DistributionHandler{
 		Ring: ring,
 		CurrentNode: currentNode,
 		absolutePathSaveDir: absolutePathSaveDir,
+		MaxBatchSize: int(maxBatchSize),
 	}
 }
 
@@ -135,15 +145,25 @@ func (dh *DistributionHandler) sendDataForTokenRange(replica *types.Node, tokenR
 		return
 	}
 
-	// TODO: batch data rows and send in chunks
-	req := &pb.SyncDataRequest{
-		Sender: dh.CurrentNode.ID,
-		Data:   dataRows,
+	// Send data in batches
+	for i := 0; i < len(dataRows); i += dh.MaxBatchSize {
+		end := i + dh.MaxBatchSize
+		if end > len(dataRows) {
+			end = len(dataRows)
+		}
+
+		batch := dataRows[i:end]
+
+		req := &pb.SyncDataRequest{
+			Sender: dh.CurrentNode.ID,
+			Data:   batch,
+		}
+		if err := stream.Send(req); err != nil {
+			log.Printf("[%s] Failed to send data batch: %v", dh.CurrentNode.ID, err)
+			return
+		}
 	}
-	if err := stream.Send(req); err != nil {
-		log.Printf("[%s] Failed to send data row: %v", dh.CurrentNode.ID, err)
-		return
-	}
+
 
 	// Close the send direction of the stream
 	if err := stream.CloseSend(); err != nil {
