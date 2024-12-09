@@ -46,8 +46,10 @@ func (dh *DistributionHandler) HandleDataSync(ctx context.Context, req *pb.SyncD
 	dh.mu.Lock()
 	defer dh.mu.Unlock()
 
+	log.Printf("[%s] Received data sync request from %s, with %d records.", dh.CurrentNode.ID, req.Sender, len(req.Data))
+
 	for _, row := range req.Data {
-		log.Printf("Syncing data: %+v\n", row.Data)
+		log.Printf("[%s] Syncing data: %+v\n", dh.CurrentNode.ID, row.Data)
 		// Insert data into the local node's storage
 		hashedKeyString , keyFound := row.Data["hashKey"]
 		if !keyFound {
@@ -58,7 +60,7 @@ func (dh *DistributionHandler) HandleDataSync(ctx context.Context, req *pb.SyncD
 		hashedKey, errorConvert := strconv.ParseUint(hashedKeyString, 10, 64)
 
 		if errorConvert != nil {
-			log.Printf("If false it means the record did not exist. \nOtherwise failed to convert hashKey while inserting data record: %v.", errorConvert)
+			log.Printf("[%s] If false it means the record did not exist. \nOtherwise failed to convert hashKey while inserting data record: %v.", dh.CurrentNode.ID, errorConvert)
 			return nil, nil
 		}
 

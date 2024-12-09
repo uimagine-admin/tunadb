@@ -54,7 +54,7 @@ func main() {
 		// Block forever to keep the node running
 		// select {}
 
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 400; i++ {
 			time.Sleep(200 * time.Millisecond)
 			currentDate := time.Now().Format(time.RFC3339Nano)
 			randomPageID := strconv.Itoa(rand.Intn(100)) 
