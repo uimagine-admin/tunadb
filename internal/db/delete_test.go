@@ -2,15 +2,18 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
 	pb "github.com/uimagine-admin/tunadb/api"
+	"github.com/uimagine-admin/tunadb/internal/utils"
 )
 
 func TestHandleDelete(t *testing.T) {
-	nodeId := "test_node"
-	filename := "./internal/data/" + nodeId + ".json"
+	nodeID0 := "test-node-0"
+	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeID0)
+	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 
 	// Setup: Create test data
 	initialRows := []Row{
@@ -19,8 +22,7 @@ func TestHandleDelete(t *testing.T) {
 		{PageId: "2", ComponentId: "link1", Event: "click", Timestamp: "2023-11-26T12:02:00Z"},
 	}
 
-	os.MkdirAll("./internal/data", os.ModePerm)
-	file, err := os.Create(filename)
+	file, err := os.Create(absolutePathSaveDir)
 	if err != nil {
 		t.Fatalf("Failed to create test data file: %v", err)
 	}
@@ -36,13 +38,13 @@ func TestHandleDelete(t *testing.T) {
 		ComponentId: "button1",
 	}
 
-	err = HandleDelete(nodeId, req)
+	err = HandleDelete(nodeID0, req, absolutePathSaveDir)
 	if err != nil {
 		t.Fatalf("HandleDelete returned error: %v", err)
 	}
 
 	// Verify the data
-	file, err = os.Open(filename)
+	file, err = os.Open(absolutePathSaveDir)
 	if err != nil {
 		t.Fatalf("Failed to open data file: %v", err)
 	}
@@ -59,5 +61,5 @@ func TestHandleDelete(t *testing.T) {
 	}
 
 	// Clean up
-	os.Remove(filename)
+	os.Remove(absolutePathSaveDir)
 }

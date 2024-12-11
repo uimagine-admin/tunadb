@@ -7,4 +7,5 @@ type Row struct {
 	Event       string `json:"event"`
 	UpdatedAt   string `json:"updated_at"`
 	CreatedAt   string `json:"created_at"`
+	HashKey     string `json:"hashkey"`
 }

@@ -15,6 +15,8 @@ const (
 	NodeStatusDead    NodeStatus = "DEAD"
 )
 
+
+
 // Node represents a single node in the distributed system.
 type Node struct {
 	IPAddress   string
@@ -26,12 +28,14 @@ type Node struct {
 	mu          sync.RWMutex  // Protects access to node fields
 }
 
+
+
 //String provides a formatted string representation of the Node for debugging purposes.
 func (n *Node) String() string {
 	n.mu.RLock()
 	defer n.mu.RUnlock()
 	return fmt.Sprintf("Node[ID=%s, Name=%s, IP=%s, Port=%d, Status=%s, LastUpdated=%s]",
-		n.ID, n.Name, n.IPAddress, n.Port, n.Status, n.LastUpdated.Format(time.RFC3339))
+		n.ID, n.Name, n.IPAddress, n.Port, n.Status, n.LastUpdated.Format(time.RFC3339Nano))
 }
 
 // UpdateStatus updates the node's status and timestamp for the last update.

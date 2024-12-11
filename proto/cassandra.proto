@@ -7,10 +7,13 @@ option go_package = "/api";
 service CassandraService {
   rpc Read (ReadRequest) returns (ReadResponse) {}
   rpc Write (WriteRequest) returns (WriteResponse) {}
+  rpc Delete (DeleteRequest) returns (DeleteResponse) {}
+
+  // Data redistribution during ring updates
+  rpc SyncData (stream SyncDataRequest) returns (stream SyncDataResponse);
 
   // Define Gossip RPC
   rpc Gossip (GossipMessage) returns (GossipAck) {}
-  rpc Delete (DeleteRequest) returns (DeleteResponse) {}
 }
 
 //sent by client to node (coordinator)
@@ -48,6 +51,7 @@ message WriteRequest {
   string componentId = 4;
   string name = 5;
   string nodeType = 6;        
+  uint64 hashKey = 7;    
 }
 
 //sent by node to client
@@ -97,4 +101,14 @@ message DeleteResponse {
   string name = 2;
   string nodeType = 3;     
   string message = 4; //error message if any                 
+}
+
+message SyncDataRequest {
+  string sender = 1;        // Sender node name
+  repeated RowData data = 2; // Data to be synced
+}
+
+message SyncDataResponse {
+  string status = 1;        // Sync operation status
+  string message = 2;       // Optional message
 }

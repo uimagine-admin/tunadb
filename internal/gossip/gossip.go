@@ -4,11 +4,13 @@ import (
 	"context"
 	"log"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
+	"github.com/uimagine-admin/tunadb/internal/dataBalancing"
 	chr "github.com/uimagine-admin/tunadb/internal/ring"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
@@ -24,16 +26,17 @@ type GossipHandler struct {
 	gossipFanOut int
 	deadNodeTimeout int // Timeout for marking a node as dead in seconds after being marked as suspect
 	gossipInterval int // Interval for gossiping in seconds
+
 }
 
 // NewGossipHandler initializes a new GossipHandler for the current node.
-func NewGossipHandler(currentNode *types.Node, chr *chr.ConsistentHashingRing, gossipFanOut int, deadNodeTimeout int, gossipInterval int) *GossipHandler {
+func NewGossipHandler(currentNode *types.Node, chr *chr.ConsistentHashingRing, gossipFanOut int, deadNodeTimeout int, gossipInterval int, dh *dataBalancing.DistributionHandler) *GossipHandler {
 	if gossipFanOut <= 1 {
 		log.Fatalf("Invalid gossip fan out: %d, MUST CHOSE A VALUE OF AT LEAST 2. \n", gossipFanOut)
 	}
 	return &GossipHandler{
 		NodeInfo:     currentNode,
-		Membership:   NewMembership(currentNode),
+		Membership:   NewMembership(currentNode, dh),
 		chr:          chr,
 		seenMessages: make(map[string]bool),
 		gossipFanOut: gossipFanOut,
@@ -58,19 +61,28 @@ func (g *GossipHandler) Start(ctx context.Context, gossipFanOut int) {
 }
 
 func (g *GossipHandler) gossip(ctx context.Context, gossipFanOut int) {
-	nodes := g.Membership.GetAllNodes()
+	g.Membership.mu.Lock()
+	defer g.Membership.mu.Unlock()	
+
+	nodes := g.Membership.nodes
+
 
 	// Filter alive nodes
 	aliveNodes := []*types.Node{}
 
 	for _, node := range nodes {
+		if node.Status == types.NodeStatusSuspect && time.Since(node.LastUpdated) > (time.Duration(g.deadNodeTimeout) * time.Second) {
+			log.Printf("[%s] Marking node %s as dead\n", g.NodeInfo.ID, node.Name)
+			g.Membership.markNodeDead(node.ID, g.chr)
+		}
+
 		if node.Status != types.NodeStatusDead && node.Name != g.NodeInfo.Name {
 			aliveNodes = append(aliveNodes, node)
 		}
 	}
 
 	if len(aliveNodes) == 0 {
-		log.Println("No other nodes to gossip with.")
+		log.Printf("[%s] No other nodes to gossip with.",g.NodeInfo.ID,)
 		return
 	}
 
@@ -82,29 +94,27 @@ func (g *GossipHandler) gossip(ctx context.Context, gossipFanOut int) {
 		}
 		targetNode := aliveNodes[targetNodeIndices[i]]
 
-		// log.Printf("Node[%s] Gossiping with node: %s\n", g.NodeInfo.ID, targetNode.Name)
-
-		// Send gossip message to the target node
 		message := g.createGossipMessage()
+		address :=  targetNode.IPAddress + ":" + strconv.FormatUint(targetNode.Port, 10)
 
-		// Send gossip message to the target node
-		address := targetNode.IPAddress
+		// logCreatedGossipMessage(targetNode.ID, message)
 
-		err := communication.SendGossipMessage(&ctx, address, message)
-		if err != nil {
-			log.Printf("[%s] Error gossiping with node %s; %v\n", g.NodeInfo.ID ,targetNode.Name, err)
-			g.Membership.MarkNodeSuspect(targetNode.Name)
-		} else {
-			// log.Printf("Node[%s] Gossip exchange with node %s successful.\n", g.NodeInfo.ID, targetNode.Name)
-			g.Membership.Heartbeat(targetNode.Name)
-		}
-
+		// Handle the sending of the message and receiving of response asynchronously
+		go func(ctx *context.Context, address string, message *pb.GossipMessage) {
+			err := communication.SendGossipMessage(ctx, address, message)
+			if err != nil {
+				log.Printf("[%s] Error gossiping with node %s; %v\n", g.NodeInfo.ID ,targetNode.Name, err)
+				g.Membership.MarkNodeSuspect(targetNode.ID)
+			} else {
+				g.Membership.Heartbeat(targetNode.ID)
+			}
+		} (&ctx, address, message)
 	}
 }
 
 // createGossipMessage creates a message containing the current node's view of the cluster.
 func (g *GossipHandler) createGossipMessage() *pb.GossipMessage {
-	nodes := g.Membership.GetAllNodes()
+	nodes := g.Membership.getAllNodes()
 
 	// Prepare node information for the gossip message
 	nodeInfos := make(map[string]*pb.NodeInfo)
@@ -120,6 +130,11 @@ func (g *GossipHandler) createGossipMessage() *pb.GossipMessage {
 				LastUpdated: time.Now().Format(time.RFC3339Nano),
 			}
 		} else {
+			if node.Status == types.NodeStatusSuspect && time.Since(node.LastUpdated) > (time.Duration(g.deadNodeTimeout) * time.Second) {
+				log.Printf("[%s] Marking node %s as dead\n", g.NodeInfo.ID, node.Name)
+				g.Membership.markNodeDead(node.ID, g.chr)
+			}
+
 			nodeInfos[id] = &pb.NodeInfo{
 				IpAddress:  node.IPAddress,
 				Id:         node.ID,
@@ -141,14 +156,14 @@ func (g *GossipHandler) createGossipMessage() *pb.GossipMessage {
 
 // HandleGossipMessage processes an incoming gossip message.
 func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipMessage) (*pb.GossipAck, error) {
-	printReceivedGossipMessage(g.NodeInfo.Name,req)
+	// logReceivedGossipMessage(g.NodeInfo.ID,req)
 
 	// Deduplication: Check if message was already seen
 	messageID := req.MessageCreator + req.MessageCreateTime
 	g.seenMessagesMu.Lock()
 	if g.seenMessages[messageID] {
 		g.seenMessagesMu.Unlock()
-		// log.Printf("Node[%s] Ignoring duplicate gossip message from node: %s\n", g.NodeInfo.ID, req.Sender)
+		// log.Printf("[%s] Ignoring duplicate gossip message from node: %s\n", g.NodeInfo.ID, req.Sender)
 		return &pb.GossipAck{Ack: true}, nil
 	} else {
 		g.seenMessages[messageID] = true
@@ -164,7 +179,7 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 
 		lastUpdated, err := time.Parse(time.RFC3339Nano, nodeInfo.LastUpdated)
 		if err != nil {
-			log.Printf("Error parsing time: %v\n", err)
+			log.Printf("[%s] Error parsing time: %v\n", g.NodeInfo.ID, err)
 			// handle the error accordingly
 		}
 
@@ -178,80 +193,95 @@ func (g *GossipHandler) HandleGossipMessage(ctx context.Context, req *pb.GossipM
 		},g.chr)
 	}
 
-	go func() {
-		// Propagate the gossip to two random nodes
-		nodes := g.Membership.GetAllNodes()
-		aliveNodes := []*types.Node{}
-		for _, node := range nodes {
-			if ( node.Status == types.NodeStatusAlive || node.Status == types.NodeStatusSuspect ) && node.Name != g.NodeInfo.Name {
-				aliveNodes = append(aliveNodes, node)
-			}
-			
-			if node.Status == types.NodeStatusSuspect && node.Name != g.NodeInfo.Name {
-				log.Printf("Node[%s] Node %s marked as suspect %v seconds ago.[%v] \n", g.NodeInfo.ID, node.Name, time.Since(node.LastUpdated).Seconds(), node.LastUpdated )
-				// TODO @a-nnza-r change this to a configurable value
-				if time.Since(node.LastUpdated) > (time.Duration(g.deadNodeTimeout) * time.Second) {
-					g.Membership.MarkNodeDead(node.Name)
-					log.Printf("Node[%s] Marking node %s as dead\n", g.NodeInfo.ID, node.Name)
-				}
-			}
-		}
+	g.Membership.mu.Lock()
+	defer g.Membership.mu.Unlock()
 
-		if len(aliveNodes) > 0 {
-			targetNodeIndices := rand.Perm(len(aliveNodes))
-			for i := 0; i < g.gossipFanOut && i < len(aliveNodes); i++ {
-				targetNode := aliveNodes[targetNodeIndices[i]]
-				address := targetNode.IPAddress
-				// update the message with the current node's membership view
-				req.Sender = g.NodeInfo.Name
-				req.Nodes = make(map[string]*pb.NodeInfo)
-				for _, node := range g.Membership.GetAllNodes() {
-					if node.Name == g.NodeInfo.Name {
-						req.Nodes[node.Name] = &pb.NodeInfo{
-							IpAddress:  node.IPAddress,
-							Id:         node.ID,
-							Port:       node.Port,
-							Name:       node.Name,
-							Status:     string(node.Status),
-							LastUpdated: time.Now().Format(time.RFC3339Nano),
-						}
-					} else {
-						req.Nodes[node.Name] = &pb.NodeInfo{
-							IpAddress:  node.IPAddress,
-							Id:         node.ID,
-							Port:       node.Port,
-							Name:       node.Name,
-							Status:     string(node.Status),
-							LastUpdated: node.LastUpdated.Format(time.RFC3339Nano),
-						}
-					}
-				}
-				printPropagatedGossipMessage(req)
-				err := communication.SendGossipMessage(&ctx, address, req)
-				if err != nil {
-					log.Printf("Node[%s] Error propagating gossip to node %s with %d; %v\n", g.NodeInfo.ID ,targetNode.Name, err, i)
-				} else {
-					// log.Printf("Node[%s] Propagated gossip to node %s\n", g.NodeInfo.ID, targetNode.Name)
-				}
+	// Select two nodes to send the gossip message to
+	nodes := g.Membership.getAllNodes()
+	aliveNodes := []*types.Node{}
+	for _, node := range nodes {
+		if ( node.Status == types.NodeStatusAlive || node.Status == types.NodeStatusSuspect ) && node.Name != g.NodeInfo.Name {
+			aliveNodes = append(aliveNodes, node)
+		}
+		
+		if node.Status == types.NodeStatusSuspect && node.Name != g.NodeInfo.Name {
+			log.Printf("[%s] Node %s marked as suspect %v seconds ago.[%v] \n", g.NodeInfo.ID, node.Name, time.Since(node.LastUpdated).Seconds(), node.LastUpdated )
+			// TODO @a-nnza-r change this to a configurable value
+			if time.Since(node.LastUpdated) > (time.Duration(g.deadNodeTimeout) * time.Second) {
+				log.Printf("[%s] Marking node %s as dead\n", g.NodeInfo.ID, node.Name)
+				g.Membership.markNodeDead(node.ID, g.chr)
 			}
 		}
-	}()
+	}
+
+	// update the message with the current node's membership view
+	req.Sender = g.NodeInfo.Name
+	req.Nodes = make(map[string]*pb.NodeInfo)
+	for _, node := range g.Membership.getAllNodes() {
+		if node.Name == g.NodeInfo.Name {
+			req.Nodes[node.ID] = &pb.NodeInfo{
+				IpAddress:  node.IPAddress,
+				Id:         node.ID,
+				Port:       node.Port,
+				Name:       node.Name,
+				Status:     string(node.Status),
+				LastUpdated: time.Now().Format(time.RFC3339Nano),
+			}
+		} else {
+			req.Nodes[node.ID] = &pb.NodeInfo{
+				IpAddress:  node.IPAddress,
+				Id:         node.ID,
+				Port:       node.Port,
+				Name:       node.Name,
+				Status:     string(node.Status),
+				LastUpdated: node.LastUpdated.Format(time.RFC3339Nano),
+			}
+		}
+	}
+
+	if len(aliveNodes) > 0 {
+		targetNodeIndices := rand.Perm(len(aliveNodes))
+		for i := 0; i < g.gossipFanOut && i < len(aliveNodes); i++ {
+			targetNode := aliveNodes[targetNodeIndices[i]]
+			targetNodeAddress := targetNode.IPAddress + ":" + strconv.FormatUint(targetNode.Port, 10)
+			
+			// Handle the sending of the message and receiving of response asynchronously
+			go func(ctx *context.Context, targetNodeAddress string, req *pb.GossipMessage) {
+				// logPropagatedGossipMessage(targetNode.ID, req)
+				err := communication.SendGossipMessage(ctx, targetNodeAddress, req)
+				if err != nil {
+					log.Printf("[%s] Error propagating gossip to node %s with %d; %v\n", g.NodeInfo.ID ,targetNode.Name, err, i)
+					g.Membership.MarkNodeSuspect(targetNode.ID)
+				} else {
+					g.Membership.Heartbeat(targetNode.ID)
+				}
+			}(&ctx, targetNodeAddress, req)
+		}
+	}
 
 	return &pb.GossipAck{Ack: true}, nil
 }
 
-func printReceivedGossipMessage(receiver string,req *pb.GossipMessage){
+func logReceivedGossipMessage(receiverID string, req *pb.GossipMessage){
 	nodesStr := ""
 	for id, node := range req.Nodes {
 		nodesStr += "["  + id + " " + node.Name + " " + node.Status + " " + node.LastUpdated + "] \n"
 	}
-	log.Printf("[%s] RECEIVED \nSender: %s, \nMessageCreator: %s, \nMessageCreateTime: %s, \nNodes: \n%s \n \n \n", receiver , req.Sender, req.MessageCreator, req.MessageCreateTime, nodesStr)
+	log.Printf("[%s] RECEIVED \nSender: %s, \nMessageCreator: %s, \nMessageCreateTime: %s, \nNodes: \n%s \n \n \n", receiverID , req.Sender, req.MessageCreator, req.MessageCreateTime, nodesStr)
 }
 
-func printPropagatedGossipMessage(req *pb.GossipMessage){
+func logPropagatedGossipMessage(targetID string, req *pb.GossipMessage){
 	nodesStr := ""
 	for id, node := range req.Nodes {
 		nodesStr += "["  + id + " " + node.Name + " " + node.Status + " " + node.LastUpdated + "] \n"
 	}
-	log.Printf("[%s] FORWARDING \nSender: %s, \nMessageCreator: %s, \nMessageCreateTime: %s, \nNodes: \n%s \n \n \n",req.Sender, req.Sender, req.MessageCreator, req.MessageCreateTime, nodesStr)
+	log.Printf("[%s] FORWARDING to [%s] \nSender: %s, \nMessageCreator: %s, \nMessageCreateTime: %s, \nNodes: \n%s \n \n \n",req.Sender, targetID, req.Sender, req.MessageCreator, req.MessageCreateTime, nodesStr)
+}
+
+func logCreatedGossipMessage(targetNodeID string, req *pb.GossipMessage){
+	nodesStr := ""
+	for id, node := range req.Nodes {
+		nodesStr += "["  + id + " " + node.Name + " " + node.Status + " " + node.LastUpdated + "] \n"
+	}
+	log.Printf("[%s] CREATED Message sending to %s \nSender: %s, \nMessageCreator: %s, \nMessageCreateTime: %s, \nNodes: \n%s \n \n \n",req.MessageCreator, targetNodeID, req.Sender, req.MessageCreator, req.MessageCreateTime, nodesStr)
 }

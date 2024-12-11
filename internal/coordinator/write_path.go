@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -25,13 +26,14 @@ import (
 func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
 	//if incoming is from node:
 	if req.NodeType == "IS_NODE" {
-		err := db.HandleInsert(h.GetNode().ID, req)
+		err := db.HandleInsert(h.GetNode().ID, req, h.absolutePathSaveDir)
 		if err != nil {
 			// TODO: ERROR HANDLING - @jaytaykay
 			log.Printf("error: %s\n", err)
 		}
-		columns := []string{"Date", "PageId", "Event", "ComponentId"}
-		values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
+		tokenStr := strconv.FormatUint(req.HashKey, 10)
+		columns := []string{"Date", "PageId", "Event", "ComponentId", "HashKey"}
+		values := []string{req.Date, req.PageId, req.Event, req.ComponentId, tokenStr}
 		log.Printf("writing rows and cols to db %s , %s\n", values, columns)
 		//write to commitlog->memtable-->SStable
 
@@ -44,7 +46,11 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 	} else {
 		//if incoming is from client:
 		ring := h.GetRing()
-		replicas := ring.GetNodes(req.PageId)
+		token, replicas := ring.GetRecordsReplicas(req.PageId)
+		// Add the token to the request, so the coordinator and the nodes can easily look up values 
+		// during redistribution
+		tokenStr := strconv.FormatUint(token, 10)
+		req.HashKey = token
 		if len(replicas) == 0 {
 			return &pb.WriteResponse{}, errors.New("no available node for key")
 		}
@@ -55,12 +61,12 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 		// for each replica: i'll send an internal write request
 		for _, replica := range replicas {
 			if replica.Name == os.Getenv("NODE_NAME") {
-				err := db.HandleInsert(h.GetNode().ID, req)
+				err := db.HandleInsert(h.GetNode().ID, req, h.absolutePathSaveDir)
 				if err != nil {
 					log.Printf("error: %s\n", err)
 				}
-				columns := []string{"Date", "PageId", "Event", "ComponentId"}
-				values := []string{req.Date, req.PageId, req.Event, req.ComponentId}
+				columns := []string{"Date", "PageId", "Event", "ComponentId", "HashKey"}
+				values := []string{req.Date, req.PageId, req.Event, req.ComponentId,tokenStr }
 				log.Printf("writing rows and cols to db %s , %s\n", values, columns)
 
 				resultsChan <- &pb.WriteResponse{
@@ -74,7 +80,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 				continue
 			} //so it doesnt send to itself
 			wg.Add(1)
-			go func(replica types.Node) {
+			go func(replica *types.Node) {
 				defer wg.Done()
 
 				address := fmt.Sprintf("%s:%d", replica.Name, replica.Port)
@@ -87,7 +93,8 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 					Event:       req.Event,
 					ComponentId: req.ComponentId,
 					Name:        os.Getenv("NODE_NAME"),
-					NodeType:    "IS_NODE"})
+					NodeType:    "IS_NODE",
+					HashKey:    token,})
 
 				if err != nil {
 					log.Printf("error reading from %s: %v\n", address, err)

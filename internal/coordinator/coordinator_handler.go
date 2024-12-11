@@ -19,12 +19,14 @@ type CoordinatorHandler struct {
 	pb.UnimplementedCassandraServiceServer
 	hashRing    *ring.ConsistentHashingRing
 	currentNode *types.Node
+	absolutePathSaveDir string
 }
 
-func NewCoordinatorHandler(ring *ring.ConsistentHashingRing, currentNode *types.Node) *CoordinatorHandler {
+func NewCoordinatorHandler(ring *ring.ConsistentHashingRing, currentNode *types.Node, 	absolutePathSaveDir string) *CoordinatorHandler {
 	return &CoordinatorHandler{
 		hashRing:    ring,
 		currentNode: currentNode,
+		absolutePathSaveDir: absolutePathSaveDir,
 	}
 }
 
