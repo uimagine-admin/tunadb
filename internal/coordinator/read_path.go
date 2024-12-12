@@ -12,6 +12,7 @@ import (
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
 	"github.com/uimagine-admin/tunadb/internal/db"
+	"github.com/uimagine-admin/tunadb/internal/replication"
 	"github.com/uimagine-admin/tunadb/internal/types"
 )
 
@@ -19,7 +20,7 @@ import (
 func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
 	if req.NodeType == "IS_NODE" {
 		var rowResults []*pb.RowData
-		rows, err := db.HandleRead(h.GetNode().ID, req)
+		rows, err := db.HandleRead(h.GetNode().ID, req, h.absolutePathSaveDir)
 		if err != nil {
 			log.Printf("Error reading row: %s , error: %s\n", rows, err)
 			return &pb.ReadResponse{}, err
@@ -45,7 +46,8 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 		}, nil
 	} else {
 		ring := h.GetRing()
-		replicas := ring.GetNodes(req.PageId)
+		_, replicas := ring.GetRecordsReplicas(req.PageId)
+
 		if len(replicas) == 0 {
 			return &pb.ReadResponse{}, errors.New("no available node for key")
 		}
@@ -59,7 +61,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			// if the replica is the current node, skip it
 			if replica.Name == os.Getenv("NODE_NAME") {
 				var rowResults []*pb.RowData
-				rows, err := db.HandleRead(h.GetNode().ID, req)
+				rows, err := db.HandleRead(h.GetNode().ID, req, h.absolutePathSaveDir)
 				if err != nil {
 					log.Printf("Error reading row: %s , error: %s\n", rows, err)
 					return &pb.ReadResponse{}, err
@@ -75,12 +77,29 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 					})
 					log.Printf("reading row %d from db %s\n", i, row)
 				}
+
+				if len(rowResults) > 0 {
+					// send to the results channel
+					resultsChan <- &pb.ReadResponse{
+						Date:    req.Date,
+						PageId:  req.PageId,
+						Columns: []string{"Date", "PageId", "Event", "ComponentId"},
+						Rows:    rowResults,
+						Name:    os.Getenv("NODE_NAME"),
+					}
+
+					log.Printf("ReadPath: current node sent to results chan\n")
+				} else {
+					log.Printf("ReadPath: no rows found in %v\n", os.Getenv("NODE_NAME"))
+				}
+				wg.Done()
 				continue
 			}
 
-			go func(replica types.Node) {
+			go func(replica *types.Node) {
 				defer wg.Done()
 
+				// TODO replica.Name should be replaced with replica.Address
 				address := fmt.Sprintf("%s:%d", replica.Name, replica.Port)
 
 				ctx_read, _ := context.WithTimeout(context.Background(), time.Second)
@@ -99,7 +118,15 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 				}
 
 				// get the reply
-				resultsChan <- resp
+				resultsChan <- &pb.ReadResponse{
+					Name:    replica.Name,
+					Date:    resp.Date,
+					PageId:  resp.PageId,
+					Columns: resp.Columns,
+					Rows:    resp.Rows,
+				}
+
+				log.Printf("ReadPath: sent to results chan %s: %v\n", address, resp)
 			}(replica)
 		}
 
@@ -109,18 +136,13 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			log.Printf("closing resultsChan\n")
 		}()
 
-		// Check for quorum
-		// quorumValue, err := replication.ReceiveQuorum(ctx, resultsChan, len(replicas))
-		// if err != nil {
-		// 	return &pb.ReadResponse{}, err
-		// }
-		// log.Printf("quorumValue: %v\n", quorumValue)
-
-		select {
-		case quorumResponse := <-resultsChan:
-			return quorumResponse, nil
-		case <-time.After(5 * time.Second):
-			return &pb.ReadResponse{}, errors.New("timeout")
+		// Block on responses to resultsChan to Check for quorum
+		quorumValue, err := replication.ReceiveReadQuorum(ctx, resultsChan, len(replicas))
+		if err != nil {
+			return &pb.ReadResponse{}, err
 		}
+		log.Printf("quorumValue: %v\n", quorumValue)
+
+		return quorumValue, nil
 	}
 }

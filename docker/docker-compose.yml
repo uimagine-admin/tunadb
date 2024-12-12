@@ -33,10 +33,12 @@ services:
     container_name: cassandra-node1
     environment:
       NODE_NAME: "cassandra-node1"
-      PEER_NODES: "cassandra-node2:50051,cassandra-node3:50051"
+      PEER_NODES: "cassandra-node2:50051,cassandra-node3:50051,cassandra-node4:50051"
       ID: "node-1"
+      INTERNAL_PORT: "50051"
+      MAX_BATCH_SIZE: "150"
     ports:
-      - "50051:50051" # Expose for external access, use 50051 internally
+      - "50056:50051" # Expose for external access, use 50051 internally
     networks:
       - cassandra-net
 
@@ -47,8 +49,10 @@ services:
     container_name: cassandra-node2
     environment:
       NODE_NAME: "cassandra-node2"
-      PEER_NODES: "cassandra-node1:50051,cassandra-node3:50051"
+      PEER_NODES: "cassandra-node1:50051,cassandra-node3:50051,cassandra-node4:50051"
       ID: "node-2"
+      INTERNAL_PORT: "50051" # Internal port
+      MAX_BATCH_SIZE: "150"
     ports:
       - "50052:50051" # External port 50052, but internally still 50051
     networks:
@@ -61,10 +65,28 @@ services:
     container_name: cassandra-node3
     environment:
       NODE_NAME: "cassandra-node3"
-      PEER_NODES: "cassandra-node1:50051,cassandra-node2:50051"
+      PEER_NODES: "cassandra-node1:50051,cassandra-node2:50051,cassandra-node4:50051"
       ID: "node-3"
+      INTERNAL_PORT: "50051"
+      MAX_BATCH_SIZE: "150"
     ports:
       - "50053:50051" # External port 50053, but internally still 50051
+    networks:
+      - cassandra-net
+
+  cassandra-node4:
+    build:
+      context: ..
+      dockerfile: ./docker/DockerfileNode
+    container_name: cassandra-node4
+    environment:
+      NODE_NAME: "cassandra-node4"
+      PEER_NODES: "cassandra-node1:50051,cassandra-node2:50051,cassandra-node3:50051"
+      ID: "node-4"
+      INTERNAL_PORT: "50051"
+      MAX_BATCH_SIZE: "150"
+    ports:
+      - "50054:50051" # External port 50053, but internally still 50051
     networks:
       - cassandra-net
 
@@ -77,7 +99,7 @@ services:
       NODE_NAME: "Client"
       PEER_ADDRESS: "cassandra-node1:50051" # Point to node1 for initial connection
     ports:
-      - "50054:50051" # Client external port 50054
+      - "50055:50051" # Client external port 50054
     networks:
       - cassandra-net
 

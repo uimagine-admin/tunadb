@@ -48,10 +48,9 @@ tuna-db/
 │   │   ├── membership.go        # Membership management and state sharing
 │   │   └── gossip_test.go       # Unit tests for gossip protocol
 │   │
-│   ├── failure/                 # Failure detection and handling
-│   │   ├── detection.go         # Heartbeat-based failure detection
-│   │   ├── handler.go           # Handling node failures and rebalancing data
-│   │   └── failure_test.go      # Unit tests for failure detection and handling
+│   ├── dataBalancing/                 # Failure detection and handling
+│   │   ├── handler.go                 # Handling node re-balancing data functions for new node addition and another function for node failure
+│   │   └── dataBalancing_test.go      # Unit tests for failure detection and handling
 │   │
 │   └── utils/                   # Utility functions and configurations
 │       ├── config.go            # Configuration management for nodes
