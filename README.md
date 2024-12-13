@@ -16,7 +16,8 @@ The project simulates core distributed database concepts such as consistent hash
 ## Ring Visualization
 
 <!-- ![Ring Visualization](./GIF%20Ring%20Viz.gif) -->
-![Ring Visualization](./ringvizcompressedmediu.gif)
+
+<img src="./ringvizcompressedmediu.gif?raw=true" width="600px">
 
 <!-- <video width="600" controls>
   <source src="./[CompressedMP4]RingVizTake2.mp4" type="video/mp4">
