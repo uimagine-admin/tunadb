@@ -39,6 +39,7 @@ services:
       MAX_BATCH_SIZE: "150"
     ports:
       - "50056:50051" # Expose for external access, use 50051 internally
+      - "50057:8080"
     networks:
       - cassandra-net
 
@@ -55,6 +56,7 @@ services:
       MAX_BATCH_SIZE: "150"
     ports:
       - "50052:50051" # External port 50052, but internally still 50051
+      - "50058:8080"
     networks:
       - cassandra-net
 
@@ -71,6 +73,7 @@ services:
       MAX_BATCH_SIZE: "150"
     ports:
       - "50053:50051" # External port 50053, but internally still 50051
+      - "50059:8080"
     networks:
       - cassandra-net
 
@@ -87,6 +90,7 @@ services:
       MAX_BATCH_SIZE: "150"
     ports:
       - "50054:50051" # External port 50053, but internally still 50051
+      - "50060:8080"
     networks:
       - cassandra-net
 
