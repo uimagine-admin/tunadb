@@ -1,12 +1,28 @@
 # TunaDB
 
-^name for database to be decided :)
+This project is a simplified version of a Cassandra-like distributed database written in Go. It is designed as a part of a Computer Science course in SUTD, **50.041 Distributed Systems and Computing**. 
 
-This project is a simplified version of a Cassandra-like distributed database written in Go. It is designed as a part of a Computer Science course called **Distributed Systems and Computing**. The project simulates core distributed database concepts such as consistent hashing, gossip protocol, quorum-based consensus, and more.
+The project simulates core distributed database concepts such as consistent hashing, gossip protocol, quorum-based consensus, and more.
 
-### Contribution Guidelines
+## Core Contributors
 
-See the Task ID in Notion. Use this task id when you create PR, so Notion could sync automatically.
+1. Mohammed Ansar Ahmed (https://github.com/a-nnza-r)
+2. Tay Jia Jiun Joshua (https://github.com/jaytaykay)
+3. Vinny Koh (https://github.com/Vinny0712)
+4. Nathan Aldrich Wiryawan (https://github.com/NathanAW24)
+5. Vincentius Roger Kuswara (https://github.com/vinroger)
+
+
+## Ring Visualization
+
+<!-- ![Ring Visualization](./GIF%20Ring%20Viz.gif) -->
+![Ring Visualization](./ringvizcompressedmediu.gif)
+
+<!-- <video width="600" controls>
+  <source src="./[CompressedMP4]RingVizTake2.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video> -->
+
 
 ## Project Structure
 
@@ -169,7 +185,7 @@ If not, ensure that your Go bin directory (usually C:\Users\<your-username>\go\b
 
 ### It should look like this!
 
-![alt text](image.png)
+![alt text](image-1.png)
 
 ### Folder Structure Overview
 
