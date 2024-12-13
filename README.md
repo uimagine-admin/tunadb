@@ -199,7 +199,7 @@ If not, ensure that your Go bin directory (usually C:\Users\<your-username>\go\b
 •	db/: Implements database storage, including in-memory tables (memtable) and persistent storage (SSTable).
 •	replication/: Manages replica placement, quorum reads/writes, and eventual consistency.
 •	gossip/: Manages the gossip protocol for node communication and status updates.
-•	failure/: Implements failure detection mechanisms and node recovery.
+•	dataBalancing/: Implements data redistribution upon node failure and new node addition.
 •	utils/: Provides helper functions like logging and configuration management.
 •	api/: Contains generated gRPC code to facilitate communication between client and server.
 •	scripts/: Bash scripts to automate running the cluster and testing the system.
