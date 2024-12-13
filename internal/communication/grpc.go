@@ -116,3 +116,25 @@ func SendDelete(Ctx *context.Context, address string, req *pb.DeleteRequest) (*p
 	log.Printf("Received delete response , Ack:  %v, Message: %v from %s \n", resp.Success, resp.Message, resp.Name)
 	return resp, err
 }
+
+func SendBulkWrite(Ctx *context.Context, address string, req *pb.BulkWriteRequest) (*pb.BulkWriteResponse, error) {
+	log.Printf("sending bulk write request to %s \n", address)
+	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		log.Fatalf("Did not connect to node: %v", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewCassandraServiceClient(conn)
+	//additional configuration can pass in as param
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	resp, err := client.BulkWrite(ctx, req)
+
+	if err != nil {
+		log.Fatalf("Could not send bulk write to address %s: %v", address, err)
+	}
+	log.Printf("Received bulk write response , Ack:  %v from %s \n", resp.Ack, resp.Name)
+	return resp, err
+}

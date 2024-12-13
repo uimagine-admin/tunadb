@@ -35,7 +35,7 @@ func runReceiveReadQuorumTest(t *testing.T, responses []*pb.ReadResponse, numRep
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	quorumResponse, err := ReceiveReadQuorum(ctx, resultsChan, numReplicas)
+	quorumResponse, err,_ := ReceiveReadQuorum(ctx, resultsChan, numReplicas)
 	if expectError {
 		if err == nil {
 			t.Fatalf("Expected error, but got response: %v", quorumResponse)
@@ -252,7 +252,7 @@ func TestReceiveReadQuorum_Timeout(t *testing.T) {
 	resultsChan := make(chan *pb.ReadResponse, numReplicas)
 	go simulateReadResponses(responses, resultsChan)
 
-	quorumResponse, err := ReceiveReadQuorum(ctx, resultsChan, numReplicas)
+	quorumResponse, err,_ := ReceiveReadQuorum(ctx, resultsChan, numReplicas)
 	if err == nil {
 		t.Fatalf("Expected timeout error, but got response: %v", quorumResponse)
 	}

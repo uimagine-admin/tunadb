@@ -132,3 +132,43 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 
 	}
 }
+
+func (h *CoordinatorHandler) BulkWrite(ctx context.Context, bulkReq *pb.BulkWriteRequest) (*pb.BulkWriteResponse, error) {
+	//if incoming is from node:
+	if bulkReq.NodeType == "IS_NODE" {
+		for _,rowData :=range  bulkReq.Data{
+			req:=&pb.WriteRequest{
+				Date:        rowData.Data["Date"],
+				PageId:      rowData.Data["PageId"],
+				Event:       rowData.Data["Event"],
+				ComponentId: rowData.Data["ComponentId"],
+				Name:        os.Getenv("NODE_NAME"),
+				NodeType:    "IS_NODE",
+				HashKey:    bulkReq.HashKey,}
+
+			err := db.HandleInsert(h.GetNode().ID, req, h.absolutePathSaveDir)
+			if err != nil {
+				
+				log.Printf("bulk write error: %s\n", err)
+				return &pb.BulkWriteResponse{}, nil
+			}
+			tokenStr := strconv.FormatUint(req.HashKey, 10)
+			columns := []string{"Date", "PageId", "Event", "ComponentId", "HashKey"}
+			values := []string{req.Date, req.PageId, req.Event, req.ComponentId, tokenStr}
+			log.Printf("writing rows and cols to db %s , %s\n", values, columns)
+
+		}
+		
+		
+
+		return &pb.BulkWriteResponse{
+			Ack:      true,
+			Name:     os.Getenv("NODE_NAME"),
+			NodeType: "IS_NODE",
+		}, nil
+
+	}else{
+		log.Printf("client bulk write not supported\n")
+		return &pb.BulkWriteResponse{}, errors.New("client bulk write not supported")
+	}
+}

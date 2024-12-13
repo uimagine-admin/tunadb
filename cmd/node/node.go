@@ -78,6 +78,29 @@ func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResp
 	return resp, nil
 }
 
+//for read repair
+func (s *server) BulkWrite(ctx context.Context, req *pb.BulkWriteRequest) (*pb.BulkWriteResponse, error) {
+	//call write_path
+	log.Printf("Received Bulk Write request from %s : Data %v ", req.Name, req.Data)
+
+	if s.NodeRingView == nil {
+		return &pb.BulkWriteResponse{}, fmt.Errorf("ring view is nil")
+	}
+
+	portnum, _ := strconv.ParseUint(portInternal, 10, 64)
+	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
+
+	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
+	//call write_path
+	ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+	resp, err := c.BulkWrite(ctx_write, req)
+	if err != nil {
+		return &pb.BulkWriteResponse{}, err
+	}
+
+	return resp, nil
+}
+
 // handle incoming gossip request
 func (s *server) Gossip(ctx context.Context, req *pb.GossipMessage) (*pb.GossipAck, error) {
 	return s.GossipHandler.HandleGossipMessage(ctx, req)
