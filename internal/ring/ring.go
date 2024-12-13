@@ -90,6 +90,21 @@ func (chr *ConsistentHashingRing) GetRingInfo() *RingInfo {
 	}
 }
 
+func (chr *ConsistentHashingRing) GetTokenRangesInfo() *RingInfo {
+	chr.mu.RLock()
+	defer chr.mu.RUnlock()
+
+	// Copy token ranges to avoid modification during iteration
+	tokenRangesCopy := make(map[string][]string)
+	for k, v := range chr.mapTokenRangesToNodeIDs {
+		tokenRangesCopy[k] = v
+	}
+
+	return &RingInfo{
+		TokenRanges: tokenRangesCopy,
+	}
+}
+
 func (ring *ConsistentHashingRing) String() string {
 	ring.mu.RLock()
 	defer ring.mu.RUnlock()

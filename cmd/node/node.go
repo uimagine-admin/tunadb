@@ -183,7 +183,7 @@ func main() {
 	go gossipHandler.Start(context.Background(), 2)
 
 	// Start HTTP server for REST API
-	go StartHTTPServer(ringView)
+	go StartHTTPServer(ringView, gossipHandler)
 
 	// Block forever
 	select {}
@@ -209,8 +209,13 @@ func StartServer(ringView *ring.ConsistentHashingRing, gossipHandler *gossip.Gos
 	}
 }
 
-// New HTTP server to serve ring info
-func StartHTTPServer(ringView *ring.ConsistentHashingRing) {
+/*
+	FOR RING VISUALIZATION FRONT-END.
+
+FRONT-END WILL REQUEST USING REST API TO ONE OF THE NODE (NODE-2)
+THEN IT WILL GET DATA FROM THE RING STRUCTURE + THE MEMBERSHIP (FOR ALL THE INFO OF THE NODES)
+*/
+func StartHTTPServer(ringView *ring.ConsistentHashingRing, gossipHandler *gossip.GossipHandler) {
 	http.HandleFunc("/ring", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins
@@ -222,8 +227,48 @@ func StartHTTPServer(ringView *ring.ConsistentHashingRing) {
 			return
 		}
 
-		info := ringView.GetRingInfo()
-		json.NewEncoder(w).Encode(info)
+		// Get token ranges from ring
+		tokenRangesInfo := ringView.GetTokenRangesInfo()
+
+		// Get all nodes from membership
+		allNodes := gossipHandler.Membership.GetAllNodes()
+
+		// Build the response JSON
+		// We want the same structure as before:
+		// {
+		//    "nodes": [...],
+		//    "token_ranges": {...}
+		// }
+
+		// Convert nodes map to slice with required fields
+		type NodeJSON struct {
+			ID        string `json:"id"`
+			Name      string `json:"name"`
+			IPAddress string `json:"ip_address"`
+			Port      uint64 `json:"port"`
+			Status    string `json:"status"`
+		}
+
+		nodesSlice := []NodeJSON{}
+		for _, node := range allNodes {
+			nodesSlice = append(nodesSlice, NodeJSON{
+				ID:        node.ID,
+				Name:      node.Name,
+				IPAddress: node.IPAddress,
+				Port:      node.Port,
+				Status:    string(node.Status),
+			})
+		}
+
+		response := struct {
+			Nodes       []NodeJSON          `json:"nodes"`
+			TokenRanges map[string][]string `json:"token_ranges"`
+		}{
+			Nodes:       nodesSlice,
+			TokenRanges: tokenRangesInfo.TokenRanges,
+		}
+
+		json.NewEncoder(w).Encode(response)
 	})
 
 	port := 8080

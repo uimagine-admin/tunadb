@@ -82,6 +82,8 @@ function App() {
       }
     }
 
+    newData.nodes.sort((a, b) => a.name.localeCompare(b.name));
+
     const timestamp = new Date().toLocaleString();
     setLogs((prev) => [{ timestamp, message: logMsg }, ...prev]);
 
@@ -246,6 +248,11 @@ function App() {
 
     setChartData({ data, options });
   }, [ringData]);
+
+  // sort ring data based on name
+  // if (ringData) {
+  //   ringData[nodes] = ringData[nodes].;
+  // }
 
   return (
     <div className="bg-gray-100 min-h-screen w-full p-8">
