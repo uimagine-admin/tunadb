@@ -10,8 +10,8 @@ import (
 
 	pb "github.com/uimagine-admin/tunadb/api"
 )
-
-func ReceiveReadQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, numReplicas int) (*pb.ReadResponse, error) {
+//edited to return extra  output for faulty nodes
+func ReceiveReadQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, numReplicas int) (*pb.ReadResponse, error,[]string) {
 	// check for quorum
 	quorum := numReplicas/2 + 1
 	success := 0
@@ -22,7 +22,7 @@ func ReceiveReadQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, n
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, errors.New("read quorum not reached due to timeout or cancellation")
+			return nil, errors.New("read quorum not reached due to timeout or cancellation"),nil
 		case resp, ok := <-resultsChan:
 			if ok {
 				log.Printf("quorum: received response from %v with date %v \n", resp.Name, resp.Date)
@@ -49,27 +49,27 @@ func ReceiveReadQuorum(ctx context.Context, resultsChan chan *pb.ReadResponse, n
 						log.Printf("faulty nodes found: %v \n", faultyNodes)
 					}
 					if err != nil {
-						return nil, err
+						return nil, err,nil
 					}
-					return resp, nil
+					return resp, nil,faultyNodes
 				}
 			} else {
 				// if channel is closed since all replicas have sent their results, return error if quorum not reached
 				if success < quorum {
-					return nil, errors.New("read quorum not reached")
+					return nil, errors.New("read quorum not reached"),nil
 				}
 
 				log.Printf("quorum: quorum reached with %d responses \n", success)
 				if lastResponse == nil {
-					return nil, errors.New("no response received")
+					return nil, errors.New("no response received"),nil
 				}
 
 				resp, faultyNodes, err := MergeReadResponses(receivedResponses)
 				log.Printf("faulty nodes found: %v \n", faultyNodes)
 				if err != nil {
-					return nil, err
+					return nil, err,nil
 				}
-				return resp, nil
+				return resp, nil,faultyNodes
 			}
 		}
 	}
@@ -204,4 +204,51 @@ func ReceiveWriteQuorum(ctx context.Context, resultsChan chan *pb.WriteResponse,
 			}
 		}
 	}
+}
+
+
+func ReceiveBulkWriteConfirm(ctx context.Context, cfmChan chan *pb.BulkWriteResponse, numReplicas int) (bool, error) {
+	// check for all successful bulk write
+	
+	receivedResponses := make([]*pb.BulkWriteResponse, 0)
+	for {
+		select {
+		case <-ctx.Done():
+			return false, errors.New("not all the bulk write confirmations are received due to timeout or cancellation")
+		case resp, ok := <-cfmChan:
+			if ok {
+				log.Printf("BulkWriteConfirm : received response from %v \n", resp.Name)
+				
+				// store the response in the array of responses
+				receivedResponses = append(receivedResponses, resp)
+				if len(receivedResponses)==numReplicas{
+					return checkAllBulkWriteSuccess(receivedResponses,numReplicas),nil
+				}	
+
+			
+			} else {
+				// if channel is closed since all replicas have sent their results
+				return checkAllBulkWriteSuccess(receivedResponses,numReplicas),nil
+			}
+		}
+	}
+}
+
+//helper
+func checkAllBulkWriteSuccess(receivedResponses []*pb.BulkWriteResponse,numReplicas int) bool {
+	success:=0
+	for _, resp := range receivedResponses {
+		if resp.Ack==true{
+			success++
+		}
+	
+	}
+	if success==numReplicas{
+		log.Printf("BulkWriteConfirm : successful bulk writes to replicas \n")
+		return true
+	}else{
+		log.Printf("BulkWriteConfirm : not all successful bulk writes to replicas \n")
+		return false
+	}
+	
 }

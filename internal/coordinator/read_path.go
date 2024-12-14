@@ -137,12 +137,71 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 		}()
 
 		// Block on responses to resultsChan to Check for quorum
-		quorumValue, err := replication.ReceiveReadQuorum(ctx, resultsChan, len(replicas))
+		quorumValue, err,faulty_nodes := replication.ReceiveReadQuorum(ctx, resultsChan, len(replicas))
+
 		if err != nil {
 			return &pb.ReadResponse{}, err
 		}
 		log.Printf("quorumValue: %v\n", quorumValue)
+		
+		if faulty_nodes !=nil{
+			log.Printf("faulty nodes: %v\n", faulty_nodes)
+		}		
+		// start of read repair
+		if faulty_nodes != nil {
+			cfmChan := make(chan *pb.BulkWriteResponse, len(faulty_nodes))
+			wg_repair := sync.WaitGroup{}
+			for _, node_name := range faulty_nodes {
+				for _, replica := range replicas{
+					if replica.Name==node_name{
+						wg_repair.Add(1)
+						log.Printf("Send read repair to node %v\n", node_name)
+						//start of send read repair
+						go func(replica *types.Node) {
+							defer wg_repair.Done()
+			
+							// TODO replica.Name should be replaced with replica.Address
+							address := fmt.Sprintf("%s:%d", replica.Name, replica.Port)
+			
+							ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+							
+		
+							ring := h.GetRing()
+							token, _ := ring.GetRecordsReplicas(req.PageId)
+							// Add the token to the request, so the coordinator and the nodes can easily look up values 
+							// during redistribution
+							
+							
 
-		return quorumValue, nil
+							resp, err := communication.SendBulkWrite(&ctx_write, address, &pb.BulkWriteRequest{
+								Name:        os.Getenv("NODE_NAME"),
+								Data:  quorumValue.Rows,//[]*pb.RowData{}
+								NodeType:    "IS_NODE",
+								HashKey:    token,})
+
+							cfmChan<-resp
+							if err != nil {
+								log.Printf("error writing to %s: %v\n", address, err)
+								return
+							}
+				
+							
+						}(replica)
+
+						
+
+					}
+				}
+		}
+		go func() {
+			wg_repair.Wait()
+			close(cfmChan) // close only after all the goroutines are done
+			log.Printf("closing cfmChan\n")
+		}()
+		//blocking call to check if received all repair cfm messages
+		replication.ReceiveBulkWriteConfirm(ctx, cfmChan, len(faulty_nodes))
+		
 	}
+	return quorumValue, nil
+}
 }

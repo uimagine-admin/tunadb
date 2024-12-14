@@ -8,7 +8,7 @@ service CassandraService {
   rpc Read (ReadRequest) returns (ReadResponse) {}
   rpc Write (WriteRequest) returns (WriteResponse) {}
   rpc Delete (DeleteRequest) returns (DeleteResponse) {}
-
+  rpc BulkWrite(BulkWriteRequest) returns (BulkWriteResponse){} //for read repair
   // Data redistribution during ring updates
   rpc SyncData (stream SyncDataRequest) returns (stream SyncDataResponse);
 
@@ -57,6 +57,23 @@ message WriteRequest {
 //sent by node to client
 //and also other nodes to coordinator nodes
 message WriteResponse {
+  bool ack = 1;
+  string name = 2;
+  string nodeType = 3;                      
+}
+
+//for read repair
+message BulkWriteRequest {
+  string name = 1;
+  repeated RowData data = 2;
+  string nodeType = 3; 
+  uint64 hashKey = 4;       
+   
+}
+
+//sent by node to client
+//and also other nodes to coordinator nodes
+message BulkWriteResponse {
   bool ack = 1;
   string name = 2;
   string nodeType = 3;                      
