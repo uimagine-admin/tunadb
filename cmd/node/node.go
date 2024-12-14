@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -23,8 +25,8 @@ import (
 
 type server struct {
 	pb.UnimplementedCassandraServiceServer
-	GossipHandler *gossip.GossipHandler
-	NodeRingView   *ring.ConsistentHashingRing
+	GossipHandler           *gossip.GossipHandler
+	NodeRingView            *ring.ConsistentHashingRing
 	DataDistributionHandler *dataBalancing.DistributionHandler
 }
 
@@ -32,9 +34,9 @@ var portInternal = os.Getenv("INTERNAL_PORT")
 var peerAddresses = getPeerAddresses()
 var absoluteSavePath string
 
-// handle incoming read request
+// handle incoming read request (gRPC)
 func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
-	log.Printf("Received read request from %s , PageId: %s ,Date: %s, columns: %s", req.Name, req.PageId, req.Date, req.Columns)
+	log.Printf("Received gRPC read request from %s , PageId: %s ,Date: %s, columns: %s", req.Name, req.PageId, req.Date, req.Columns)
 
 	if s.NodeRingView == nil {
 		return &pb.ReadResponse{}, fmt.Errorf("ring view is nil")
@@ -45,8 +47,9 @@ func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadRespons
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
 	ctx_read, _ := context.WithTimeout(context.Background(), time.Second)
+	// ctx_read, cancel := context.WithTimeout(context.Background(), time.Second)
+	// defer cancel()
 
-	//call read_path
 	resp, err := c.Read(ctx_read, req)
 	if err != nil {
 		return &pb.ReadResponse{}, err
@@ -55,10 +58,10 @@ func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadRespons
 	return resp, nil
 }
 
-// handle incoming write request
+// handle incoming write request (gRPC)
 func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
-	//call write_path
-	log.Printf("Received Write request from %s : Date %s PageId %s Event %s ComponentId %s ", req.Name, req.Date, req.PageId, req.Event, req.ComponentId)
+	log.Printf("Received gRPC Write request from %s : Date %s PageId %s Event %s ComponentId %s ",
+		req.Name, req.Date, req.PageId, req.Event, req.ComponentId)
 
 	if s.NodeRingView == nil {
 		return &pb.WriteResponse{}, fmt.Errorf("ring view is nil")
@@ -68,8 +71,10 @@ func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResp
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
-	//call write_path
 	ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+	// ctx_write, cancel := context.WithTimeout(context.Background(), time.Second)
+	// defer cancel()
+
 	resp, err := c.Write(ctx_write, req)
 	if err != nil {
 		return &pb.WriteResponse{}, err
@@ -78,7 +83,7 @@ func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResp
 	return resp, nil
 }
 
-//for read repair
+// for read repair
 func (s *server) BulkWrite(ctx context.Context, req *pb.BulkWriteRequest) (*pb.BulkWriteResponse, error) {
 	//call write_path
 	log.Printf("Received Bulk Write request from %s : Data %v ", req.Name, req.Data)
@@ -132,10 +137,10 @@ func (s *server) SyncData(stream pb.CassandraService_SyncDataServer) error {
     }
 }
 
-
 // handle delete requests
 func (s *server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteResponse, error) {
-	log.Printf("Received delete request: Date %s PageId %s Event %s ComponentId %s ", req.Date, req.PageId, req.Event, req.ComponentId)
+	log.Printf("Received gRPC delete request: Date %s PageId %s Event %s ComponentId %s ",
+		req.Date, req.PageId, req.Event, req.ComponentId)
 
 	if s.NodeRingView == nil {
 		return &pb.DeleteResponse{
@@ -144,12 +149,14 @@ func (s *server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteR
 		}, fmt.Errorf("ring view is nil")
 	}
 
-	var portnum, _ = strconv.ParseUint("50051", 10, 64)
+	var portnum, _ = strconv.ParseUint(portInternal, 10, 64)
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
-	//call delete_path
 	ctx_delete, _ := context.WithTimeout(context.Background(), time.Second)
+	// ctx_delete, cancel := context.WithTimeout(context.Background(), time.Second)
+	// defer cancel()
+
 	resp, err := c.Delete(ctx_delete, req)
 	if err != nil {
 		return &pb.DeleteResponse{
@@ -161,8 +168,9 @@ func (s *server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteR
 	return resp, nil
 }
 
+// Other gRPC handlers omitted for brevity...
+
 func main() {
-	// Start the gossip protocol and gRPC server
 	nodeName := os.Getenv("NODE_NAME")
 	nodeID := os.Getenv("ID")
 	port, _ := strconv.ParseUint(portInternal, 10, 64)
@@ -170,54 +178,51 @@ func main() {
 	relativePathSaveDir := fmt.Sprintf("../../internal/db/internal/data/%s.json", nodeID)
 	absoluteSavePath = utils.GetPath(relativePathSaveDir)
 
-	// Initialize the current node and gossip handler
 	currentNode := &types.Node{
-		ID:   nodeID,
-		Name: nodeName,
-		Port: port,
-		Status: types.NodeStatusAlive,
+		ID:        nodeID,
+		Name:      nodeName,
+		Port:      port,
+		Status:    types.NodeStatusAlive,
 		IPAddress: nodeName,
 	}
 
-	// Set up the consistent hashing ring
-	// ring, err := startRing(currentNode, peerAddresses)
-	ring := ring.CreateConsistentHashingRing(currentNode, 3, 2)
+	ringView := ring.CreateConsistentHashingRing(currentNode, 3, 2)
+	distributionHandler := dataBalancing.NewDistributionHandler(ringView, currentNode, absoluteSavePath)
 
-	// Initialize the data distribution handler
-	distributionHandler := dataBalancing.NewDistributionHandler(ring, currentNode, absoluteSavePath)
-
-	// Adjust Fanout, timeouts, and interval as needed
+	// Gossip parameters
 	gossipFanOut := 2
 	gossipTimeout := 8
 	gossipInterval := 3
-	gossipHandler := gossip.NewGossipHandler(currentNode, ring, gossipFanOut, gossipTimeout, gossipInterval, distributionHandler) 
+	gossipHandler := gossip.NewGossipHandler(currentNode, ringView, gossipFanOut, gossipTimeout, gossipInterval, distributionHandler)
 
-	// Add peers to the membership list
+	// Add peers
 	for _, address := range peerAddresses {
 		parts := strings.Split(address, ":")
 		port, _ := strconv.ParseUint(parts[1], 10, 64)
 		peerNode := &types.Node{
-			Name: parts[0],
-			Port: port,
-			ID:   fmt.Sprintf("node-%s", parts[0][len(parts[0])-1:]),
+			Name:      parts[0],
+			Port:      port,
+			ID:        fmt.Sprintf("node-%s", parts[0][len(parts[0])-1:]),
 			IPAddress: parts[0],
-			Status: types.NodeStatusAlive,
+			Status:    types.NodeStatusAlive,
 		}
-		gossipHandler.Membership.AddOrUpdateNode(peerNode, ring)
+		gossipHandler.Membership.AddOrUpdateNode(peerNode, ringView)
 	}
 
 	// Start gRPC server
-	go StartServer(ring ,gossipHandler, distributionHandler)
+	go StartServer(ringView, gossipHandler, distributionHandler)
 
 	// Start the gossip protocol
 	go gossipHandler.Start(context.Background(), 2)
 
-	// Block forever
+	// Start HTTP server
+	go StartHTTPServer2(ringView, distributionHandler)
+
 	select {}
 }
 
 func StartServer(ringView *ring.ConsistentHashingRing, gossipHandler *gossip.GossipHandler, distributionHandler *dataBalancing.DistributionHandler) {
-	log.Printf("Listening on %s", fmt.Sprintf(":%s", portInternal))
+	log.Printf("Listening GRPC on %s", fmt.Sprintf(":%s", portInternal))
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", portInternal))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
@@ -225,46 +230,138 @@ func StartServer(ringView *ring.ConsistentHashingRing, gossipHandler *gossip.Gos
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterCassandraServiceServer(grpcServer, &server{
-		GossipHandler: gossipHandler,
-		NodeRingView:   ringView,
+		GossipHandler:           gossipHandler,
+		NodeRingView:            ringView,
 		DataDistributionHandler: distributionHandler,
 	})
 
 	log.Printf("gRPC server is running on port %s", portInternal)
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+		log.Fatalf("Failed to serve gRPC: %v", err)
 	}
 }
 
-// func startRing(currentNode *types.Node, peerAddresses []string) (*ring.ConsistentHashingRing, error) {
-// 	nodes := make([]*types.Node, len(peerAddresses))
-// 	for i, address := range peerAddresses {
-// 		parts := strings.Split(address, ":")
-// 		port, _ := strconv.ParseUint(parts[1], 10, 64)
-// 		nodes[i] = &types.Node{
-// 			Name: parts[0],
-// 			Port: port,
-// 			ID:   fmt.Sprintf("node-%d", i),
-// 			IPAddress: parts[0],
-// 		}
-// 	}
+// --------------------- HTTP SERVER CODE --------------------- //
 
-// 	r := ring.CreateConsistentHashingRing(currentNode, uint64(len(nodes)), 2)
-// 	for _, node := range nodes {
-// 		r.AddNode(node)
-// 	}
+func StartHTTPServer2(ringView *ring.ConsistentHashingRing, distributionHandler *dataBalancing.DistributionHandler) {
+	httpPort := "8090" // or from environment variable
+	log.Printf("HTTP server running on port %s", httpPort)
 
-// 	return r, nil
-// }
+	// Handlers
+	http.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
+		handleReadRequest(w, r, ringView, distributionHandler)
+	})
+	http.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
+		handleWriteRequest(w, r, ringView, distributionHandler)
+	})
+	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request) {
+		handleDeleteRequest(w, r, ringView, distributionHandler)
+	})
+
+	if err := http.ListenAndServe(":"+httpPort, nil); err != nil {
+		log.Fatalf("Failed to run HTTP server: %v", err)
+	}
+}
+
+func handleReadRequest(w http.ResponseWriter, r *http.Request, ringView *ring.ConsistentHashingRing, distributionHandler *dataBalancing.DistributionHandler) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST method allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req pb.ReadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	portnum, _ := strconv.ParseUint(portInternal, 10, 64)
+	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
+	c := coordinator.NewCoordinatorHandler(ringView, currentNode, absoluteSavePath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	resp, err := c.Read(ctx, &req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error reading: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSONResponse(w, resp)
+}
+
+func handleWriteRequest(w http.ResponseWriter, r *http.Request, ringView *ring.ConsistentHashingRing, distributionHandler *dataBalancing.DistributionHandler) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST method allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req pb.WriteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	portnum, _ := strconv.ParseUint(portInternal, 10, 64)
+	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
+	c := coordinator.NewCoordinatorHandler(ringView, currentNode, absoluteSavePath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	resp, err := c.Write(ctx, &req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error writing: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSONResponse(w, resp)
+}
+
+func handleDeleteRequest(w http.ResponseWriter, r *http.Request, ringView *ring.ConsistentHashingRing, distributionHandler *dataBalancing.DistributionHandler) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST method allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req pb.DeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	portnum, _ := strconv.ParseUint(portInternal, 10, 64)
+	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
+	c := coordinator.NewCoordinatorHandler(ringView, currentNode, absoluteSavePath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	resp, err := c.Delete(ctx, &req)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error deleting: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSONResponse(w, resp)
+}
+
+func writeJSONResponse(w http.ResponseWriter, resp interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+	}
+}
+
+// ------------------------------------------------------------ //
 
 func getPeerAddresses() []string {
-	// Fetch peer addresses from environment variables
 	peerAddressesEnv := os.Getenv("PEER_NODES")
 	if peerAddressesEnv == "" {
 		log.Fatal("PEER_ADDRESSES environment variable not set")
 	}
 
-	// Split addresses into a slice
 	peerAddresses := strings.Split(peerAddressesEnv, ",")
 	return peerAddresses
 }
