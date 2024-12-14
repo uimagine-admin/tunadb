@@ -113,28 +113,28 @@ func (s *server) Gossip(ctx context.Context, req *pb.GossipMessage) (*pb.GossipA
 
 // handle incoming sync request
 func (s *server) SyncData(stream pb.CassandraService_SyncDataServer) error {
-    for {
-        // Receive messages from the stream
-        req, err := stream.Recv()
-        if err == io.EOF {
-            // End of stream
-            return nil
-        }
-        if err != nil {
-            return fmt.Errorf("error receiving stream: %v", err)
-        }
+	for {
+		// Receive messages from the stream
+		req, err := stream.Recv()
+		if err == io.EOF {
+			// End of stream
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("error receiving stream: %v", err)
+		}
 
-        s.DataDistributionHandler.HandleDataSync(stream.Context(), req)
+		s.DataDistributionHandler.HandleDataSync(stream.Context(), req)
 
-        // Send a response back
-        resp := &pb.SyncDataResponse{
-            Status:  "success",
-            Message: "Processed successfully",
-        }
-        if err := stream.Send(resp); err != nil {
-            return fmt.Errorf("error sending stream: %v", err)
-        }
-    }
+		// Send a response back
+		resp := &pb.SyncDataResponse{
+			Status:  "success",
+			Message: "Processed successfully",
+		}
+		if err := stream.Send(resp); err != nil {
+			return fmt.Errorf("error sending stream: %v", err)
+		}
+	}
 }
 
 // handle delete requests
@@ -247,17 +247,34 @@ func StartHTTPServer2(ringView *ring.ConsistentHashingRing, distributionHandler 
 	httpPort := "8090" // or from environment variable
 	log.Printf("HTTP server running on port %s", httpPort)
 
-	// Handlers
-	http.HandleFunc("/read", func(w http.ResponseWriter, r *http.Request) {
-		handleReadRequest(w, r, ringView, distributionHandler)
-	})
-	http.HandleFunc("/write", func(w http.ResponseWriter, r *http.Request) {
-		handleWriteRequest(w, r, ringView, distributionHandler)
-	})
-	http.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request) {
-		handleDeleteRequest(w, r, ringView, distributionHandler)
-	})
+	// Middleware to handle CORS
+	corsMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
+			// Handle preflight requests
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	// Handlers
+	http.Handle("/read", corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handleReadRequest(w, r, ringView, distributionHandler)
+	})))
+	http.Handle("/write", corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handleWriteRequest(w, r, ringView, distributionHandler)
+	})))
+	http.Handle("/delete", corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handleDeleteRequest(w, r, ringView, distributionHandler)
+	})))
+
+	// Start the server
 	if err := http.ListenAndServe(":"+httpPort, nil); err != nil {
 		log.Fatalf("Failed to run HTTP server: %v", err)
 	}
