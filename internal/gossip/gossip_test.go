@@ -109,7 +109,7 @@ func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationF
 		cancelFuncs = append(cancelFuncs, &cancel)
 		server, err := StartNode(handler)
 		if err != nil {
-			log.Fatalf("Failed to start gRPC server for node %s: %v", nodes[i].Name, err)
+			log.Printf("Failed to start gRPC server for node %s: %v", nodes[i].Name, err)
 			defer cancel()
 			server.Stop()
 			return nil, nil, nil, nil, nil, nil 

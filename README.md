@@ -29,17 +29,23 @@ The project simulates core distributed database concepts such as consistent hash
 
 ```
 tuna-db/
-│
-├── docker/
-│   ├── Dockerfile               # Custom Docker image setup (if needed)
-│   └── docker-compose.yml       # Docker Compose file for running multiple nodes
-│
-├── proto/
-│   └── cassandra.proto          # Protobuf definitions for gRPC communication between nodes
-│
+|
+├── api/                         # gRPC auto-generated files for server and client
+│   ├── cassandra_grpc.pb.go     # Generated gRPC Go code (server)
+│   └── cassandra_grpc.pb.gw.go  # Generated gRPC Gateway code (if REST support is needed)
+|
+├── checkpoint_reports/                   # gRPC auto-generated files for server and client
+│   ├── checkpoint3-gossip-details.md     # Generated gRPC Go code (server)
+|
 ├── cmd/
 │   ├── node/
-│   │   └── main.go              # Entry point for running a Cassandra node server
+│   │   └── server.go            # Entry point for running a Cassandra node server
+|   │   └── client.go            # Entry point for running a example client
+│
+├── docker/
+│   └── docker-compose.yml       # Docker Compose file for running multiple nodes
+│   ├── DockerfileClient         # Sample Docker image setup (for client)
+│   ├── DockerfileServer         # Docker image setup (for server node)
 │
 ├── internal/
 │   ├── ring/                    # Consistent hashing implementation for distributing data
@@ -73,14 +79,14 @@ tuna-db/
 │       ├── config.go            # Configuration management for nodes
 │       ├── logging.go           # Logging setup for better observability
 │       └── utils.go             # Common helper functions
-│
-├── api/                         # gRPC auto-generated files for server and client
-│   ├── cassandra_grpc.pb.go     # Generated gRPC Go code (server)
-│   └── cassandra_grpc.pb.gw.go  # Generated gRPC Gateway code (if REST support is needed)
+|
+├── proto/
+│   └── cassandra.proto          # Protobuf definitions for gRPC communication between nodes
 │
 ├── scripts/                     # Scripts for setting up and testing the cluster
 │   ├── run_cluster.sh           # Bash script to spin up a local cluster using Docker
-│   └── test_data.sh             # Script for populating the cluster with test data
+│   └── test_data.sh             # Script for populating the cluster with test data (TODO: Check necessity)
+│   └── run_local.sh             # Script for ... (TODO: What is this for)
 │
 ├── go.mod                       # Go module file
 ├── go.sum                       # Go dependencies file

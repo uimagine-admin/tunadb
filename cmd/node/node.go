@@ -23,6 +23,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+
+
 type server struct {
 	pb.UnimplementedCassandraServiceServer
 	GossipHandler           *gossip.GossipHandler
@@ -36,8 +38,6 @@ var absoluteSavePath string
 
 // handle incoming read request
 func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
-	log.Printf("Received read request from %s , PageId: %s ,Date: %s, columns: %s", req.Name, req.PageId, req.Date, req.Columns)
-
 	if s.NodeRingView == nil {
 		return &pb.ReadResponse{}, fmt.Errorf("ring view is nil")
 	}
@@ -60,9 +60,6 @@ func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadRespons
 
 // handle incoming write request
 func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
-	//call write_path
-	log.Printf("Received Write request from %s : Date %s PageId %s Event %s ComponentId %s ", req.Name, req.Date, req.PageId, req.Event, req.ComponentId)
-
 	if s.NodeRingView == nil {
 		return &pb.WriteResponse{}, fmt.Errorf("ring view is nil")
 	}
@@ -165,8 +162,16 @@ func main() {
 	nodeName := os.Getenv("NODE_NAME")
 	nodeID := os.Getenv("ID")
 	port, _ := strconv.ParseUint(portInternal, 10, 64)
+	replicationFactor := os.Getenv("ReplicationFactor")
+	replicationFactorInt, intConvError := strconv.Atoi(replicationFactor)
+
+	if intConvError != nil {
+		log.Printf("[%s] Setting replication factor to default value 2", nodeID)
+		replicationFactorInt = 2
+	}
 
 	relativePathSaveDir := fmt.Sprintf("../../internal/db/internal/data/%s.json", nodeID)
+	log.Printf("Node ID: %s, Node Name: %s, Port: %d, Save Path: %s", nodeID, nodeName, port, relativePathSaveDir)
 	absoluteSavePath = utils.GetPath(relativePathSaveDir)
 
 	// Initialize the current node and gossip handler
@@ -178,7 +183,7 @@ func main() {
 		IPAddress: nodeName,
 	}
 
-	ringView := ring.CreateConsistentHashingRing(currentNode, 3, 2)
+	ringView := ring.CreateConsistentHashingRing(currentNode, 3, replicationFactorInt)
 
 	distributionHandler := dataBalancing.NewDistributionHandler(ringView, currentNode, absoluteSavePath)
 

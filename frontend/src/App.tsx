@@ -57,7 +57,7 @@ function App() {
 
   const fetchRingData = async () => {
     try {
-      const res = await fetch('http://localhost:50058/ring');
+      const res = await fetch('http://localhost:50061/ring');
       const data: RingResponse = await res.json();
       handleDataUpdate(data);
     } catch (err) {
@@ -255,17 +255,17 @@ function App() {
   // }
 
   return (
-    <div className="bg-gray-100 min-h-screen w-full p-8">
-      <h1 className="text-3xl font-bold text-center mb-6">
+    <div className="w-full min-h-screen p-8 bg-gray-100">
+      <h1 className="mb-6 text-3xl font-bold text-center">
         Consistent Hashing Ring Visualization
       </h1>
-      <p className="text-center mb-6 text-gray-700">
+      <p className="mb-6 text-center text-gray-700">
         This visualization represents the ring of the consistent hashing setup.
         Each arc represents a token range segment handled by one or more nodes.
       </p>
 
       <div
-        className="flex flex-row items-center justify-center space-x-10 p-10"
+        className="flex flex-row items-center justify-center p-10 space-x-10"
         style={{ height: 'calc(100vh - 160px)' }}
       >
         {/* Left side: Ring */}
@@ -278,16 +278,16 @@ function App() {
         </div>
 
         {/* Right side: Nodes and Logs */}
-        <div className="flex-1 flex flex-col space-y-8 h-full">
+        <div className="flex flex-col flex-1 h-full space-y-8">
           {ringData && (
-            <div className="bg-white p-4 rounded shadow">
-              <h2 className="text-xl font-semibold mb-4">Nodes</h2>
+            <div className="p-4 bg-white rounded shadow">
+              <h2 className="mb-4 text-xl font-semibold">Nodes</h2>
               <ul className="space-y-2">
                 {ringData.nodes.map((node) => {
                   const statusColor = getNodeStatusColor(node.status);
                   return (
-                    <li key={node.id} className="p-2 bg-gray-50 rounded">
-                      <div className="font-semibold flex items-center space-x-2">
+                    <li key={node.id} className="p-2 rounded bg-gray-50">
+                      <div className="flex items-center space-x-2 font-semibold">
                         <span>
                           {node.name} ({node.id})
                         </span>
@@ -305,8 +305,8 @@ function App() {
               </ul>
             </div>
           )}
-          <div className="bg-white p-4 rounded shadow overflow-auto max-h-full h-full">
-            <h2 className="text-xl font-semibold mb-4">Logs</h2>
+          <div className="h-full max-h-full p-4 overflow-auto bg-white rounded shadow">
+            <h2 className="mb-4 text-xl font-semibold">Logs</h2>
             <ul className="space-y-2">
               {logs.map((log, index) => (
                 <li key={index} className="text-sm text-gray-700">

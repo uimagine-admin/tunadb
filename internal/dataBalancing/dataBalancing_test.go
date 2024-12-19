@@ -145,7 +145,7 @@ func runSystem(nodes []*types.Node, nodeRings []*rp.ConsistentHashingRing, dataH
 		cancelFuncs = append(cancelFuncs, &cancel)
 		server, err := StartNode(handler, dataHandlers[i])
 		if err != nil {
-			log.Fatalf("Failed to start gRPC server for node %s: %v", nodes[i].Name, err)
+			log.Printf("Failed to start gRPC server for node %s: %v", nodes[i].Name, err)
 			defer cancel()
 			server.Stop()
 			return nil, nil, nil, nil
