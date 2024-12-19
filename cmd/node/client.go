@@ -34,7 +34,7 @@ func main() {
 		return
 	} else {
 		// Example write call 
-		ctx_write, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx_write, _ := context.WithCancel(context.Background())
 		communication.SendWrite(&ctx_write, os.Getenv("PEER_ADDRESS"), &pb.WriteRequest{
 			Date:        "2024-11-27T10:00:40.999999999Z",
 			PageId:      "1",
@@ -46,7 +46,7 @@ func main() {
 		time.Sleep(2 * time.Second)
 
 		// Example read call	
-		ctx_read1, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx_read1, _ := context.WithCancel(context.Background())
 		communication.SendRead(&ctx_read1, os.Getenv("PEER_ADDRESS"), &pb.ReadRequest{
 			Date:     "2024-11-27T10:00:40.999999999Z",
 			PageId:   "1",
@@ -57,7 +57,8 @@ func main() {
 		fmt.Printf(ClientReadRequest + "[Client] Sent read request to %s\n" + Reset, os.Getenv("PEER_ADDRESS"))
 
 		// Example delete call
-		ctx_delete, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		// ctx_delete, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx_delete, _ := context.WithCancel(context.Background())
 		communication.SendDelete(&ctx_delete, os.Getenv("PEER_ADDRESS"), &pb.DeleteRequest{
 			Date:        "",
 			PageId:      "1",
@@ -68,7 +69,8 @@ func main() {
 		time.Sleep(1 * time.Second)
 
 		// Example read call
-		ctx_read2, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		// ctx_read2, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx_read2, _ := context.WithCancel(context.Background())
 		communication.SendRead(&ctx_read2, os.Getenv("PEER_ADDRESS"), &pb.ReadRequest{
 			Date:     "2024-11-27T10:00:40.999999999Z",
 			PageId:   "1",

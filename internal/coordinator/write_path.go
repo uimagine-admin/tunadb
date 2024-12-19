@@ -87,7 +87,8 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 					ComponentId: req.ComponentId,
 					Name:        os.Getenv("NODE_NAME"),
 					NodeType:    "IS_NODE",
-					HashKey:    token,})
+					HashKey:    token,
+				})
 
 				if err != nil {
 					log.Printf(GeneralError + "[%s] Error reading from %s: %v\n" + Reset, h.currentNode.ID, address, err)

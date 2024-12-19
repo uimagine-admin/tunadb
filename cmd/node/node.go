@@ -68,7 +68,8 @@ func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResp
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
-	ctx_write, cancel := context.WithTimeout(context.Background(), time.Second)
+	// ctx_write, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+	ctx_write , cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	resp, err := c.Write(ctx_write, req)
