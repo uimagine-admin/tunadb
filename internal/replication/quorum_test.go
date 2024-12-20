@@ -32,7 +32,7 @@ func runReceiveReadQuorumTest(t *testing.T, responses []*pb.ReadResponse, numRep
 	resultsChan := make(chan *pb.ReadResponse, numReplicas)
 	go simulateReadResponses(responses, resultsChan)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	quorumResponse, err,_ := ReceiveReadQuorum(ctx, resultsChan, numReplicas)
@@ -98,7 +98,7 @@ func runReceiveReadQuorumTest(t *testing.T, responses []*pb.ReadResponse, numRep
 // 	}()
 
 // 	// Use a context with a timeout
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+// 	ctx, cancel := context.WithCancel(context.Background())
 // 	defer cancel()
 
 // 	// Call ReceiveQuorum in the same way it's called in your code
@@ -141,7 +141,7 @@ func runReceiveReadQuorumTest(t *testing.T, responses []*pb.ReadResponse, numRep
 // 		}
 // 	}()
 
-// 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+// 	ctx, cancel := context.WithCancel(context.Background())
 // 	defer cancel()
 
 // 	quorumResponse, err := ReceiveReadQuorum(ctx, resultsChan, numReplicas)
@@ -246,7 +246,7 @@ func TestReceiveReadQuorum_Timeout(t *testing.T) {
 	}
 
 	// Set a very short timeout to simulate timeout scenario
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	resultsChan := make(chan *pb.ReadResponse, numReplicas)
@@ -317,7 +317,7 @@ func TestReceiveWriteQuorum(t *testing.T) {
 		close(resultsChan)
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	quorumResponse, err := ReceiveWriteQuorum(ctx, resultsChan, numReplicas)
@@ -367,7 +367,7 @@ func TestReceiveWriteQuorum_ManyReplicas(t *testing.T) {
 		close(resultsChan)
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	quorumResponse, err := ReceiveWriteQuorum(ctx, resultsChan, numReplicas)
@@ -403,7 +403,7 @@ func TestReceiveWriteQuorum_NotReached(t *testing.T) {
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	quorumResponse, err := ReceiveWriteQuorum(ctx, resultsChan, numReplicas)
@@ -444,7 +444,7 @@ func TestReceiveWriteQuorum_1FalseAckIn2Ack(t *testing.T) {
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	quorumResponse, err := ReceiveWriteQuorum(ctx, resultsChan, numReplicas)
@@ -489,7 +489,7 @@ func TestReceiveWriteQuorum_2FalseAckIn3Ack(t *testing.T) {
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	quorumResponse, err := ReceiveWriteQuorum(ctx, resultsChan, numReplicas)

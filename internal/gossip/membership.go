@@ -70,7 +70,7 @@ func (m *Membership) AddOrUpdateNode(incomingNode *types.Node, chr *chr.Consiste
 			// This flag ensures that the ring structure is updated and the data is redistributed
 			ringUpdated = true
 
-			log.Printf("[%s] Dead Node has recovered: %v\n", m.currentNode.ID, incomingNode.String())
+			log.Printf(GossipAckMessageColor + "[%s] Dead Node has recovered: %v\n" + Reset, m.currentNode.ID, incomingNode.String())
 		}
 
 		// case 1.4: incoming node is marked as suspect and the existing node is alive
@@ -100,26 +100,29 @@ func (m *Membership) AddOrUpdateNode(incomingNode *types.Node, chr *chr.Consiste
 	if !exists{
 		m.nodes[incomingNode.ID] = incomingNode
 		ringUpdated = true
-		log.Printf("[%s] Updating node: %v\n", m.currentNode.ID, incomingNode.String())
+		log.Printf(GossipAckMessageColor + "[%s] Updating node: %v\n" + Reset, m.currentNode.ID, incomingNode.String())
 	}
 
 	// if node has not been seen before, add it to the consistent hashing ring
 	if ringUpdated {
 		if !chr.DoesRingContainNode(incomingNode) {
-			log.Printf("[%s] Adding node: %s\n", m.currentNode.ID, incomingNode.String())
+			log.Printf(GossipAckMessageColor + "[%s] Adding node: %s\n" + Reset, m.currentNode.ID, incomingNode.String())
 			oldKeyRanges := chr.AddNode(incomingNode)
 			mapNodeIdsToOldKeyRanges := convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(oldKeyRanges)
-			m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+			if m.DataDistributionHandler != nil {
+				m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+
+			}
 		} else {
-			// TODO: What happens when the ring was not updated properly after last failure ? 
-			log.Printf("[%s] Node already exists in ring: %s\n", m.currentNode.ID, incomingNode.String())
-			log.Printf("[%s] Ring: %v\n", m.currentNode.ID, chr.String())
-			// log.Fatalf("[%s] Node exists in ring but not in membership: %s\n", m.currentNode.ID, incomingNode.String())
+			log.Printf(GossipAckMessageColor + "[%s] Node already exists in ring: %s\n" + Reset, m.currentNode.ID, incomingNode.String())
+			log.Printf(GossipAckMessageColor + "[%s] Ring: %v\n" + Reset, m.currentNode.ID, chr.String())
 			chr.DeleteNode(incomingNode)
-			log.Printf("[%s] Ring after Removing the dead node: %v\n", m.currentNode.ID, chr.String())
+			log.Printf(GossipAckMessageColor + "[%s] Ring after Removing the dead node: %v\n"+ Reset, m.currentNode.ID, chr.String())
 			oldKeyRanges := chr.AddNode(incomingNode)
 			mapNodeIdsToOldKeyRanges := convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(oldKeyRanges)
-			m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+			if m.DataDistributionHandler != nil {
+				m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+			}
 		}
 
 	}
@@ -134,12 +137,12 @@ func (m *Membership) AddOrUpdateNode(incomingNode *types.Node, chr *chr.Consiste
 */
 func (m *Membership) markNodeSuspect(nodeID string) {
 	if nodeID == m.currentNode.ID {
-		log.Fatalf("[%s] Cannot mark self as suspect\n", m.currentNode.ID)
+		log.Printf(GeneralError + "[%s] Cannot mark self as suspect\n" + Reset, m.currentNode.ID)
 	}
 
 	node, exists := m.nodes[nodeID]
 	if exists && node.Status == types.NodeStatusAlive {
-		log.Printf("[%s] Marking %s as Suspect. \n", m.currentNode.ID, node.String())
+		log.Printf(GossipInfoColor + "[%s] Marking %s as Suspect. \n" + Reset, m.currentNode.ID, node.String())
 		node.Status = types.NodeStatusSuspect
 		node.LastUpdated = time.Now()
 	}
@@ -167,21 +170,22 @@ func (m *Membership) MarkNodeSuspect(nodeID string) {
 */
 func (m *Membership) markNodeDead(nodeID string, chr *chr.ConsistentHashingRing) {
 	if nodeID == m.currentNode.ID {
-		log.Fatalf("[%s] Cannot mark self as dead\n", m.currentNode.ID)
+		log.Printf(GeneralError + "[%s] Cannot mark self as dead\n" + Reset, m.currentNode.ID)
 	}
 
 	node, exists := m.nodes[nodeID]
-	log.Printf("[%s] Supposed to delete node: %s\n", m.currentNode.ID, node.String())
 	if exists {
 		node.Status = types.NodeStatusDead
 		node.LastUpdated = time.Now()
-		log.Printf("[%s] Deleting node: %s\n", m.currentNode.ID, node.String())
+		log.Printf(GossipInfoColor + "[%s] Deleting node: %s\n" + Reset, m.currentNode.ID, node.String())
 		oldKeyRanges := chr.DeleteNode(node)
 
 		go func (oldKeyRangesAfterDelete map[string][]string) {
 			// The data redistribution process can be handled a
 			mapNodeIdsToOldKeyRanges := convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(oldKeyRangesAfterDelete)
-			m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+			if m.DataDistributionHandler != nil {
+				m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+			}
 		}(oldKeyRanges)
 	}
 }
@@ -259,7 +263,7 @@ func (m *Membership) Heartbeat(nodeID string) {
 		node.Status = types.NodeStatusAlive
 		node.LastUpdated = time.Now()
 	}
-	log.Printf("[%s] Gossip exchange with node %s successful.\n", m.currentNode.ID, nodeID)
+	// log.Printf("[%s] Gossip exchange with node %s successful.\n", m.currentNode.ID, nodeID)
 }
 
 func convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(tokenRangesToNodeIDs map[string][]string) map[string][]chr.TokenRange {
@@ -271,7 +275,7 @@ func convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(tokenRangesToNodeIDs
 			tokenEnd, errEnd := strconv.ParseUint(tokenStartEnd[1], 10,64)
 
 			if errStart != nil || errEnd != nil {
-				log.Println("Error parsing token range")
+				log.Println(GeneralError + "Error parsing token range" + Reset)
 				continue
 			}else {
 				tokenRange := chr.TokenRange{

@@ -3,12 +3,17 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 )
+
+var Reset = "\033[0m"
+var GeneralError = "\033[38;5;196m"          // Bright Red
+var GeneralInfo = "\033[38;5;33m"            // Blue
 
 func HandleInsert(nodeId string, req *pb.WriteRequest, absolutePathSaveDir string) error {
 	var rows []Row
@@ -17,19 +22,19 @@ func HandleInsert(nodeId string, req *pb.WriteRequest, absolutePathSaveDir strin
 		// File exists, read the existing data
 		file, err := os.Open(absolutePathSaveDir)
 		if err != nil {
-			return fmt.Errorf("[%s] Failed to open file: %w", nodeId, err)
+			return fmt.Errorf(GeneralError + "[%s] Failed to open file: %w" + Reset, nodeId, err)
 		}
 		defer file.Close()
 
 		decoder := json.NewDecoder(file)
 		if err := decoder.Decode(&rows); err != nil {
-			return fmt.Errorf("[%s] Failed to decode JSON: %w", nodeId, err)
+			return fmt.Errorf(GeneralError + "[%s] Failed to decode JSON: %w" + Reset, nodeId, err)
 		}
 	} else if os.IsNotExist(err) {
 		// File does not exist, create a new list
 		rows = []Row{}
 	} else {
-		return fmt.Errorf("[%s] Failed to check file existence: %w",nodeId ,err)
+		return fmt.Errorf(GeneralError + "[%s] Failed to check file existence: %w" + Reset, nodeId ,err)
 	}
 
 	// Create a new event object
@@ -51,7 +56,7 @@ func HandleInsert(nodeId string, req *pb.WriteRequest, absolutePathSaveDir strin
 			row.Timestamp == newEvent.Timestamp &&
 			row.Event == newEvent.Event {
 			// Record already exists, skip insertion
-			fmt.Printf("[%s] Record already exists: %+v\n", nodeId, newEvent)
+			log.Printf(GeneralInfo + "[%s] Record already exists: %+v\n" + Reset, nodeId, newEvent)
 			return nil
 		}
 	}
@@ -62,13 +67,13 @@ func HandleInsert(nodeId string, req *pb.WriteRequest, absolutePathSaveDir strin
 	// Write the updated data back to the file
 	file, err := os.Create(absolutePathSaveDir)
 	if err != nil {
-		return fmt.Errorf("[%s] Failed to create file: %w", nodeId, err)
+		return fmt.Errorf(GeneralError + "[%s] Failed to create file: %w" + Reset, nodeId, err)
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	if err := encoder.Encode(rows); err != nil {
-		return fmt.Errorf("[%s] Failed to encode JSON: %w", nodeId, err)
+		return fmt.Errorf(GeneralError + "[%s] Failed to encode JSON: %w" + Reset, nodeId, err)
 	}
 
 	return nil

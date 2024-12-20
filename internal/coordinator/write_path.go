@@ -1,7 +1,3 @@
-//write logic would be here:
-//if coordinator : hash -> send to other nodes , await reply , if crash detected->repair
-//if not coordinator : wirte to commitlog->memtable->check if memtable>capacity ->SStable
-
 package coordinator
 
 import (
@@ -12,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
@@ -26,16 +21,12 @@ import (
 func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
 	//if incoming is from node:
 	if req.NodeType == "IS_NODE" {
+		log.Printf(CoordinatorWriteRequest + "[%s] WritePath: received write request from %s , PageId: %s ,Date: %s, Event: %s, ComponentId: %s\n" + Reset, h.currentNode.ID, req.Name, req.PageId, req.Date, req.Event, req.ComponentId)
 		err := db.HandleInsert(h.GetNode().ID, req, h.absolutePathSaveDir)
 		if err != nil {
 			// TODO: ERROR HANDLING - @jaytaykay
-			log.Printf("error: %s\n", err)
+			log.Printf("[%s] Error: %s\n", h.currentNode.ID, err)
 		}
-		tokenStr := strconv.FormatUint(req.HashKey, 10)
-		columns := []string{"Date", "PageId", "Event", "ComponentId", "HashKey"}
-		values := []string{req.Date, req.PageId, req.Event, req.ComponentId, tokenStr}
-		log.Printf("writing rows and cols to db %s , %s\n", values, columns)
-		//write to commitlog->memtable-->SStable
 
 		return &pb.WriteResponse{
 			Ack:      true,
@@ -44,6 +35,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 		}, nil
 
 	} else {
+		log.Printf(ClientWriteRequest + "[%s] WritePath: received write request from [Client] , PageId: %s ,Date: %s, Event: %s, ComponentId: %s\n" + Reset, h.currentNode.ID, req.PageId, req.Date, req.Event, req.ComponentId)
 		//if incoming is from client:
 		ring := h.GetRing()
 		token, replicas := ring.GetRecordsReplicas(req.PageId)
@@ -67,7 +59,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 				}
 				columns := []string{"Date", "PageId", "Event", "ComponentId", "HashKey"}
 				values := []string{req.Date, req.PageId, req.Event, req.ComponentId,tokenStr }
-				log.Printf("writing rows and cols to db %s , %s\n", values, columns)
+				log.Printf(ClientWriteRequest + "[%s] Writing rows and cols to db %s , %s\n" + Reset, h.currentNode.ID, values, columns)
 
 				resultsChan <- &pb.WriteResponse{
 					Ack:      true,
@@ -75,7 +67,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 					NodeType: "IS_NODE",
 				}
 
-				log.Printf("WritePath: current node sent ack to results chan\n")
+				log.Printf(ClientWriteRequest + "[%s] WritePath: current node sent ack to results chan\n" + Reset, h.currentNode.ID)
 
 				continue
 			} //so it doesnt send to itself
@@ -85,7 +77,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 
 				address := fmt.Sprintf("%s:%d", replica.Name, replica.Port)
 
-				ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+				ctx_write, _ := context.WithCancel(context.Background())
 
 				resp, err := communication.SendWrite(&ctx_write, address, &pb.WriteRequest{
 					Date:        req.Date,
@@ -94,10 +86,11 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 					ComponentId: req.ComponentId,
 					Name:        os.Getenv("NODE_NAME"),
 					NodeType:    "IS_NODE",
-					HashKey:    token,})
+					HashKey:    token,
+				})
 
 				if err != nil {
-					log.Printf("error reading from %s: %v\n", address, err)
+					log.Printf(GeneralError + "[%s] Error reading from %s: %v\n" + Reset, h.currentNode.ID, address, err)
 					return
 				}
 
@@ -120,16 +113,6 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 		}
 		log.Printf("quorum: quorum reached with %v responses \n", quorumValue)
 		return &pb.WriteResponse{Ack: true, Name: os.Getenv("NODE_NAME"), NodeType: "IS_NODE"}, nil
-
-		// select {
-		// case <-resultsChan:
-		// 	return &pb.WriteResponse{Ack: true,
-		// 		Name:     os.Getenv("NODE_NAME"),
-		// 		NodeType: "IS_NODE"}, nil
-		// case <-time.After(5 * time.Second):
-		// 	return &pb.WriteResponse{Ack: false, Name: os.Getenv("NODE_NAME"), NodeType: "IS_NODE"}, errors.New("timeout")
-		// }
-
 	}
 }
 
@@ -149,14 +132,9 @@ func (h *CoordinatorHandler) BulkWrite(ctx context.Context, bulkReq *pb.BulkWrit
 			err := db.HandleInsert(h.GetNode().ID, req, h.absolutePathSaveDir)
 			if err != nil {
 				
-				log.Printf("bulk write error: %s\n", err)
+				log.Printf(GeneralError + "[%s] Bulk write error: %s\n" + Reset, h.currentNode.ID, err)
 				return &pb.BulkWriteResponse{}, nil
 			}
-			tokenStr := strconv.FormatUint(req.HashKey, 10)
-			columns := []string{"Date", "PageId", "Event", "ComponentId", "HashKey"}
-			values := []string{req.Date, req.PageId, req.Event, req.ComponentId, tokenStr}
-			log.Printf("writing rows and cols to db %s , %s\n", values, columns)
-
 		}
 		
 		
@@ -168,7 +146,7 @@ func (h *CoordinatorHandler) BulkWrite(ctx context.Context, bulkReq *pb.BulkWrit
 		}, nil
 
 	}else{
-		log.Printf("client bulk write not supported\n")
+		log.Printf( GeneralDebug + "[%s] Client bulk write not supported\n" + Reset, h.currentNode.ID)
 		return &pb.BulkWriteResponse{}, errors.New("client bulk write not supported")
 	}
 }

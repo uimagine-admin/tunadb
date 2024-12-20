@@ -11,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/coordinator"
@@ -22,6 +21,8 @@ import (
 	"github.com/uimagine-admin/tunadb/internal/utils"
 	"google.golang.org/grpc"
 )
+
+
 
 type server struct {
 	pb.UnimplementedCassandraServiceServer
@@ -36,8 +37,6 @@ var absoluteSavePath string
 
 // handle incoming read request
 func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadResponse, error) {
-	log.Printf("Received read request from %s , PageId: %s ,Date: %s, columns: %s", req.Name, req.PageId, req.Date, req.Columns)
-
 	if s.NodeRingView == nil {
 		return &pb.ReadResponse{}, fmt.Errorf("ring view is nil")
 	}
@@ -46,7 +45,8 @@ func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadRespons
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
-	ctx_read, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx_read, cancel := context.WithCancel(context.Background())
+
 	defer cancel()
 
 	//call read_path
@@ -60,9 +60,6 @@ func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadRespons
 
 // handle incoming write request
 func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResponse, error) {
-	//call write_path
-	log.Printf("Received Write request from %s : Date %s PageId %s Event %s ComponentId %s ", req.Name, req.Date, req.PageId, req.Event, req.ComponentId)
-
 	if s.NodeRingView == nil {
 		return &pb.WriteResponse{}, fmt.Errorf("ring view is nil")
 	}
@@ -71,7 +68,7 @@ func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResp
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
-	ctx_write, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx_write , cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	resp, err := c.Write(ctx_write, req)
@@ -96,7 +93,7 @@ func (s *server) BulkWrite(ctx context.Context, req *pb.BulkWriteRequest) (*pb.B
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
 	//call write_path
-	ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+	ctx_write, _ := context.WithCancel(context.Background())
 	resp, err := c.BulkWrite(ctx_write, req)
 	if err != nil {
 		return &pb.BulkWriteResponse{}, err
@@ -147,7 +144,7 @@ func (s *server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteR
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
-	ctx_delete, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx_delete, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	resp, err := c.Delete(ctx_delete, req)
 	if err != nil {
@@ -165,8 +162,16 @@ func main() {
 	nodeName := os.Getenv("NODE_NAME")
 	nodeID := os.Getenv("ID")
 	port, _ := strconv.ParseUint(portInternal, 10, 64)
+	replicationFactor := os.Getenv("ReplicationFactor")
+	replicationFactorInt, intConvError := strconv.Atoi(replicationFactor)
+
+	if intConvError != nil {
+		log.Printf("[%s] Setting replication factor to default value 2", nodeID)
+		replicationFactorInt = 2
+	}
 
 	relativePathSaveDir := fmt.Sprintf("../../internal/db/internal/data/%s.json", nodeID)
+	log.Printf("Node ID: %s, Node Name: %s, Port: %d, Save Path: %s", nodeID, nodeName, port, relativePathSaveDir)
 	absoluteSavePath = utils.GetPath(relativePathSaveDir)
 
 	// Initialize the current node and gossip handler
@@ -178,7 +183,7 @@ func main() {
 		IPAddress: nodeName,
 	}
 
-	ringView := ring.CreateConsistentHashingRing(currentNode, 3, 2)
+	ringView := ring.CreateConsistentHashingRing(currentNode, 3, replicationFactorInt)
 
 	distributionHandler := dataBalancing.NewDistributionHandler(ringView, currentNode, absoluteSavePath)
 

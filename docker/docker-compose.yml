@@ -1,31 +1,5 @@
 version: "3"
 services:
-  # client:
-  #   build:
-  #     context: ..
-  #     dockerfile: ./docker/DockerfileClient
-  #   container_name: client
-  #   environment:
-  #     NODE_NAME: "Client"
-  #     PEER_ADDRESS: "cassandra-node:50051"
-  #   ports:
-  #     - "50051:50051"
-  #   networks:
-  #     - cassandra-net
-
-  # cassandra-node:
-  #   build:
-  #     context: ..
-  #     dockerfile: ./docker/DockerfileNode
-  #   container_name: cassandra-node
-  #   environment:
-  #     NODE_NAME: "Node"
-  #     PEER_ADDRESS: "client:50051"
-  #   ports:
-  #     - "50052:50051"
-  #   networks:
-  #     - cassandra-net
-
   cassandra-node1:
     build:
       context: ..
@@ -33,13 +7,14 @@ services:
     container_name: cassandra-node1
     environment:
       NODE_NAME: "cassandra-node1"
-      PEER_NODES: "cassandra-node2:50051,cassandra-node3:50051,cassandra-node4:50051"
+      PEER_NODES: "cassandra-node2:50050,cassandra-node3:50050,cassandra-node4:50050,cassandra-node5:50050,cassandra-node6:50050,cassandra-node7:50050,cassandra-node8:50050,cassandra-node9:50050"
       ID: "node-1"
-      INTERNAL_PORT: "50051"
+      INTERNAL_PORT: "50050"
       MAX_BATCH_SIZE: "150"
+      ReplicationFactor: "3"
     ports:
-      - "50056:50051" # Expose for external access, use 50051 internally
-      - "50057:8080"
+      - "50051:50050" # Expose for external access, use 50051 internally
+      - "50061:8080"
     networks:
       - cassandra-net
 
@@ -50,13 +25,14 @@ services:
     container_name: cassandra-node2
     environment:
       NODE_NAME: "cassandra-node2"
-      PEER_NODES: "cassandra-node1:50051,cassandra-node3:50051,cassandra-node4:50051"
+      PEER_NODES: "cassandra-node1:50050,cassandra-node3:50050,cassandra-node4:50050,cassandra-node5:50050,cassandra-node6:50050,cassandra-node7:50050,cassandra-node8:50050,cassandra-node9:50050"
       ID: "node-2"
-      INTERNAL_PORT: "50051" # Internal port
+      INTERNAL_PORT: "50050" # Internal port
       MAX_BATCH_SIZE: "150"
+      ReplicationFactor: "3"
     ports:
-      - "50052:50051" # External port 50052, but internally still 50051
-      - "50058:8080"
+      - "50052:50050" # External port 50052, but internally still 50050
+      - "50062:8080"
     networks:
       - cassandra-net
 
@@ -67,13 +43,14 @@ services:
     container_name: cassandra-node3
     environment:
       NODE_NAME: "cassandra-node3"
-      PEER_NODES: "cassandra-node1:50051,cassandra-node2:50051,cassandra-node4:50051"
+      PEER_NODES: "cassandra-node1:50050,cassandra-node2:50050,cassandra-node4:50050,cassandra-node5:50050,cassandra-node6:50050,cassandra-node7:50050,cassandra-node8:50050,cassandra-node9:50050"
       ID: "node-3"
-      INTERNAL_PORT: "50051"
+      INTERNAL_PORT: "50050"
       MAX_BATCH_SIZE: "150"
+      ReplicationFactor: "3"
     ports:
-      - "50053:50051" # External port 50053, but internally still 50051
-      - "50059:8080"
+      - "50053:50050" # External port 50053, but internally still 50050
+      - "50063:8080"
     networks:
       - cassandra-net
 
@@ -84,13 +61,104 @@ services:
     container_name: cassandra-node4
     environment:
       NODE_NAME: "cassandra-node4"
-      PEER_NODES: "cassandra-node1:50051,cassandra-node2:50051,cassandra-node3:50051"
+      PEER_NODES: "cassandra-node1:50050,cassandra-node2:50050,cassandra-node3:50050,cassandra-node5:50050,cassandra-node6:50050,cassandra-node7:50050,cassandra-node8:50050,cassandra-node9:50050"
       ID: "node-4"
-      INTERNAL_PORT: "50051"
+      INTERNAL_PORT: "50050"
       MAX_BATCH_SIZE: "150"
+      ReplicationFactor: "3"
     ports:
-      - "50054:50051" # External port 50053, but internally still 50051
-      - "50060:8080"
+      - "50054:50050" # External port 50054, but internally still 50050
+      - "50064:8080"
+    networks:
+      - cassandra-net
+
+  cassandra-node5:
+    build:
+      context: ..
+      dockerfile: ./docker/DockerfileNode
+    container_name: cassandra-node5
+    environment:
+      NODE_NAME: "cassandra-node5"
+      PEER_NODES: "cassandra-node1:50050,cassandra-node2:50050,cassandra-node3:50050,cassandra-node4:50050,cassandra-node6:50050,cassandra-node7:50050,cassandra-node8:50050,cassandra-node9:50050"
+      ID: "node-5"
+      INTERNAL_PORT: "50050"
+      MAX_BATCH_SIZE: "150"
+      ReplicationFactor: "3"
+    ports:
+      - "50055:50050" # External port 50055, but internally still 50050
+      - "50065:8080"
+    networks:
+      - cassandra-net
+  
+  cassandra-node6:
+    build:
+      context: ..
+      dockerfile: ./docker/DockerfileNode
+    container_name: cassandra-node6
+    environment:
+      NODE_NAME: "cassandra-node6"
+      PEER_NODES: "cassandra-node1:50050,cassandra-node2:50050,cassandra-node3:50050,cassandra-node4:50050,cassandra-node5:50050,cassandra-node7:50050,cassandra-node8:50050,cassandra-node9:50050"
+      ID: "node-6"
+      INTERNAL_PORT: "50050"
+      MAX_BATCH_SIZE: "150"
+      ReplicationFactor: "3"
+    ports:
+      - "50056:50050" # External port 50056, but internally still 50050
+      - "50066:8080"
+    networks:
+      - cassandra-net
+
+  cassandra-node7:
+    build:
+      context: ..
+      dockerfile: ./docker/DockerfileNode
+    container_name: cassandra-node7
+    environment:
+      NODE_NAME: "cassandra-node7"
+      PEER_NODES: "cassandra-node1:50050,cassandra-node2:50050,cassandra-node3:50050,cassandra-node4:50050,cassandra-node5:50050,cassandra-node6:50050,cassandra-node8:50050,cassandra-node9:50050"
+      ID: "node-7"
+      INTERNAL_PORT: "50050"
+      MAX_BATCH_SIZE: "150"
+      ReplicationFactor: "3"
+    ports:
+      - "50057:50050" # External port 50057, but internally still 50050
+      - "50067:8080"
+    networks:
+      - cassandra-net
+
+  cassandra-node8:
+    build:
+      context: ..
+      dockerfile: ./docker/DockerfileNode
+    container_name: cassandra-node8
+    environment:
+      NODE_NAME: "cassandra-node8"
+      PEER_NODES: "cassandra-node1:50050,cassandra-node2:50050,cassandra-node3:50050,cassandra-node4:50050,cassandra-node5:50050,cassandra-node6:50050,cassandra-node7:50050,cassandra-node9:50050"
+      ID: "node-8"
+      INTERNAL_PORT: "50050"
+      MAX_BATCH_SIZE: "150"
+      ReplicationFactor: "3"
+    ports:
+      - "50058:50050" # External port 50058, but internally still 50050
+      - "50068:8080"
+    networks:
+      - cassandra-net
+
+  cassandra-node9:
+    build:
+      context: ..
+      dockerfile: ./docker/DockerfileNode
+    container_name: cassandra-node9
+    environment:
+      NODE_NAME: "cassandra-node9"
+      PEER_NODES: "cassandra-node1:50050,cassandra-node2:50050,cassandra-node3:50050,cassandra-node4:50050,cassandra-node5:50050,cassandra-node6:50050,cassandra-node7:50050,cassandra-node8:50050"
+      ID: "node-9"
+      INTERNAL_PORT: "50050"
+      MAX_BATCH_SIZE: "150"
+      ReplicationFactor: "3"
+    ports:
+      - "50059:50050" # External port 50059, but internally still 50050
+      - "50069:8080"
     networks:
       - cassandra-net
 
@@ -101,9 +169,9 @@ services:
     container_name: client
     environment:
       NODE_NAME: "Client"
-      PEER_ADDRESS: "cassandra-node1:50051" # Point to node1 for initial connection
+      PEER_ADDRESS: "cassandra-node1:50050" # Point to node1 for initial connection
     ports:
-      - "50055:50051" # Client external port 50054
+      - "50070:50050" # Client external port 50054
     networks:
       - cassandra-net
 

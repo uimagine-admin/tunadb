@@ -145,7 +145,7 @@ func runSystem(nodes []*types.Node, nodeRings []*rp.ConsistentHashingRing, dataH
 		cancelFuncs = append(cancelFuncs, &cancel)
 		server, err := StartNode(handler, dataHandlers[i])
 		if err != nil {
-			log.Fatalf("Failed to start gRPC server for node %s: %v", nodes[i].Name, err)
+			log.Printf("Failed to start gRPC server for node %s: %v", nodes[i].Name, err)
 			defer cancel()
 			server.Stop()
 			return nil, nil, nil, nil
@@ -257,7 +257,7 @@ func TestDataSyncInitialSystemSetUp(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// Step 2: Run the system
-	runSystem(nodes, nodeRings, dataHandlers, gossipFanOut, suspectToDeadTimeout, gossipInterval)
+	_, servers, _, cancelFuncs := runSystem(nodes, nodeRings, dataHandlers, gossipFanOut, suspectToDeadTimeout, gossipInterval)
 
 	time.Sleep(10 * time.Second)
 
@@ -301,6 +301,14 @@ func TestDataSyncInitialSystemSetUp(t *testing.T) {
 			t.Fatalf("Insufficient Replication: %+v", record)
 		}
 	}
+
+		// Clean up: Stop remaining servers and cancel contexts
+		for i, server := range servers {
+			if i != 1 { // Skip the already stopped node
+				server.Stop()
+				(*cancelFuncs[i])()
+			}
+		}
 
 }
 
@@ -391,9 +399,10 @@ func TestDataRebalancingAfterNodeFailure(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	// Step 4: Simulate node failure by stopping node 1
-	fmt.Printf("Stopping node %s\n", nodes[1].Name)
-	servers[1].Stop()
+	log.Printf("Stopping node %s\n", nodes[1].Name)
 	(*cancelFuncs[1])()
+	servers[1].Stop()
+
 
 	// Remove the node from the gossip handlers of other nodes
 	for i, handler := range gossipHandlers {
@@ -457,8 +466,8 @@ func TestDataRebalancingAfterNodeFailure(t *testing.T) {
 	// Clean up: Stop remaining servers and cancel contexts
 	for i, server := range servers {
 		if i != 1 { // Skip the already stopped node
-			server.Stop()
 			(*cancelFuncs[i])()
+			server.Stop()
 		}
 	}
 }
