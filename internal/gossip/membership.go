@@ -109,7 +109,10 @@ func (m *Membership) AddOrUpdateNode(incomingNode *types.Node, chr *chr.Consiste
 			log.Printf(GossipAckMessageColor + "[%s] Adding node: %s\n" + Reset, m.currentNode.ID, incomingNode.String())
 			oldKeyRanges := chr.AddNode(incomingNode)
 			mapNodeIdsToOldKeyRanges := convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(oldKeyRanges)
-			m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+			if m.DataDistributionHandler != nil {
+				m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+
+			}
 		} else {
 			log.Printf(GossipAckMessageColor + "[%s] Node already exists in ring: %s\n" + Reset, m.currentNode.ID, incomingNode.String())
 			log.Printf(GossipAckMessageColor + "[%s] Ring: %v\n" + Reset, m.currentNode.ID, chr.String())
@@ -117,7 +120,9 @@ func (m *Membership) AddOrUpdateNode(incomingNode *types.Node, chr *chr.Consiste
 			log.Printf(GossipAckMessageColor + "[%s] Ring after Removing the dead node: %v\n"+ Reset, m.currentNode.ID, chr.String())
 			oldKeyRanges := chr.AddNode(incomingNode)
 			mapNodeIdsToOldKeyRanges := convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(oldKeyRanges)
-			m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+			if m.DataDistributionHandler != nil {
+				m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+			}
 		}
 
 	}
@@ -178,7 +183,9 @@ func (m *Membership) markNodeDead(nodeID string, chr *chr.ConsistentHashingRing)
 		go func (oldKeyRangesAfterDelete map[string][]string) {
 			// The data redistribution process can be handled a
 			mapNodeIdsToOldKeyRanges := convertTokenRangeToNodeIDsMapToNodeIDsToTokenRangesMap(oldKeyRangesAfterDelete)
-			m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+			if m.DataDistributionHandler != nil {
+				m.DataDistributionHandler.TriggerDataRedistribution(mapNodeIdsToOldKeyRanges)
+			}
 		}(oldKeyRanges)
 	}
 }

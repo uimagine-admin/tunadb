@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -55,7 +56,7 @@ func HandleInsert(nodeId string, req *pb.WriteRequest, absolutePathSaveDir strin
 			row.Timestamp == newEvent.Timestamp &&
 			row.Event == newEvent.Event {
 			// Record already exists, skip insertion
-			fmt.Printf(GeneralInfo + "[%s] Record already exists: %+v\n" + Reset, nodeId, newEvent)
+			log.Printf(GeneralInfo + "[%s] Record already exists: %+v\n" + Reset, nodeId, newEvent)
 			return nil
 		}
 	}

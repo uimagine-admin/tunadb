@@ -11,7 +11,7 @@ import (
 )
 
 func TestHandleDelete(t *testing.T) {
-	nodeID0 := "test-node-0"
+	nodeID0 := "delete-test-node-0"
 	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeID0)
 	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 

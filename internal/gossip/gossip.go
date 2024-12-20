@@ -65,7 +65,7 @@ func (g *GossipHandler) Start(ctx context.Context, gossipFanOut int) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println(GossipInfoColor + "[%s] Stopping gossip protocol..."+ Reset, g.NodeInfo.ID)
+			log.Printf(GossipInfoColor + "[%s] Stopping gossip protocol..."+ Reset, g.NodeInfo.ID)
 			return
 		case <-ticker.C:
 			g.gossip(ctx, gossipFanOut)

@@ -11,7 +11,7 @@ import (
 )
 
 func TestHandleRead(t *testing.T) {
-	nodeId := "test_tokenRange"
+	nodeId := "test-read-token-ranges"
 	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeId)
 	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 
@@ -30,11 +30,11 @@ func TestHandleRead(t *testing.T) {
 }
 
 func TestFetchRecordsByHashKey(t *testing.T) {
-	nodeId := "test_tokenRange"
+	nodeId := "test-read-token-ranges"
 	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeId)
 	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 
-	rowData, err :=  HandleRecordsFetchByHashKey("test_tokenRange", ring.TokenRange{
+	rowData, err :=  HandleRecordsFetchByHashKey("test-read-token-ranges", ring.TokenRange{
 		Start: 0,
 		End:   2,
 	}, absolutePathSaveDir)
@@ -108,11 +108,11 @@ func TestFetchRecordsByHashKey(t *testing.T) {
 }
 
 func TestFetchRecordsByHashKey2(t *testing.T) {
-	nodeId := "test_tokenRange"
+	nodeId := "test-read-token-ranges"
 	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeId)
 	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 
-	rowData, err :=  HandleRecordsFetchByHashKey("test_tokenRange", ring.TokenRange{
+	rowData, err :=  HandleRecordsFetchByHashKey("test-read-token-ranges", ring.TokenRange{
 		Start: 2,
 		End:   100,
 	},absolutePathSaveDir)
@@ -205,7 +205,7 @@ func TestFetchRecordsByHashKey2(t *testing.T) {
 
 
 func TestHandleReadAfterInsert(t *testing.T) {
-	nodeId := "TestHandleReadAfterInsert"
+	nodeId := "test-read-after-insert"
 	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeId)
 	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 
@@ -249,7 +249,7 @@ func TestHandleReadAfterInsert(t *testing.T) {
 }
 
 func TestReadAfterDuplicateInsert(t *testing.T) {
-	nodeId := "TestReadAfterDuplicateInsert"
+	nodeId := "test-read-after-insert-duplicates"
 	relativePathSaveDir := fmt.Sprintf("internal/data/%s.json", nodeId)
 	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 

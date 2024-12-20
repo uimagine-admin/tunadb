@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"strconv"
@@ -30,7 +30,7 @@ func main() {
 	// Initialize cluster membership with the first node
 	initialNode := os.Getenv("PEER_ADDRESS")
 	if initialNode == "" {
-		fmt.Println(ClusterMembershipRequest + "[Client] PEER_ADDRESS environment variable not set."+ Reset)
+		log.Println(ClusterMembershipRequest + "[Client] PEER_ADDRESS environment variable not set."+ Reset)
 		return
 	} else {
 		// Example write call 
@@ -42,35 +42,33 @@ func main() {
 			ComponentId: "btn1",
 			Name:        os.Getenv("NODE_NAME"),
 			NodeType:    "IS_CLIENT"})
-		fmt.Printf(ClientWriteRequest + "[Client] Sent write request to %s\n" + Reset, os.Getenv("PEER_ADDRESS"))
+		log.Printf(ClientWriteRequest + "[Client] Sent write request to %s\n" + Reset, os.Getenv("PEER_ADDRESS"))
 		time.Sleep(2 * time.Second)
 
 		// Example read call	
-		ctx_read1, _ := context.WithCancel(context.Background())
-		communication.SendRead(&ctx_read1, os.Getenv("PEER_ADDRESS"), &pb.ReadRequest{
+		ctx_read_1, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		communication.SendRead(&ctx_read_1, os.Getenv("PEER_ADDRESS"), &pb.ReadRequest{
 			Date:     "2024-11-27T10:00:40.999999999Z",
 			PageId:   "1",
 			Columns:  []string{"event", "componentId", "count"},
 			Name:     os.Getenv("NODE_NAME"),
 			NodeType: "IS_CLIENT",
 		})
-		fmt.Printf(ClientReadRequest + "[Client] Sent read request to %s\n" + Reset, os.Getenv("PEER_ADDRESS"))
+		log.Printf(ClientReadRequest + "[Client] Sent read request to %s\n" + Reset, os.Getenv("PEER_ADDRESS"))
 
 		// Example delete call
-		// ctx_delete, _ := context.WithTimeout(context.Background(), 5*time.Second)
-		ctx_delete, _ := context.WithCancel(context.Background())
+		ctx_delete, _ := context.WithTimeout(context.Background(), 5*time.Second)
 		communication.SendDelete(&ctx_delete, os.Getenv("PEER_ADDRESS"), &pb.DeleteRequest{
 			Date:        "",
 			PageId:      "1",
 			Event:       "",
 			ComponentId: "btn1",
 		})
-		fmt.Printf(ClientDeleteRequest + "[Client] Sent delete request to %s\n" + Reset, os.Getenv("PEER_ADDRESS"))
+		log.Printf(ClientDeleteRequest + "[Client] Sent delete request to %s\n" + Reset, os.Getenv("PEER_ADDRESS"))
 		time.Sleep(1 * time.Second)
 
 		// Example read call
-		// ctx_read2, _ := context.WithTimeout(context.Background(), 5*time.Second)
-		ctx_read2, _ := context.WithCancel(context.Background())
+		ctx_read2, _ := context.WithTimeout(context.Background(), 5*time.Second)
 		communication.SendRead(&ctx_read2, os.Getenv("PEER_ADDRESS"), &pb.ReadRequest{
 			Date:     "2024-11-27T10:00:40.999999999Z",
 			PageId:   "1",
@@ -78,15 +76,16 @@ func main() {
 			Name:     os.Getenv("NODE_NAME"),
 			NodeType: "IS_CLIENT",
 		})
-		fmt.Printf(ClientReadRequest + "[Client] Sent read request to %s\n" + Reset, os.Getenv("PEER_ADDRESS"))
+		log.Printf(ClientReadRequest + "[Client] Sent read request to %s\n" + Reset, os.Getenv("PEER_ADDRESS"))
 		time.Sleep(1 * time.Second)
 
 		// Test creation of multiple write requests
 		for i := 0; i < 400; i++ {
+			ctx_write_i, _ := context.WithTimeout(context.Background(), 5 * time.Second)
 			time.Sleep(200 * time.Millisecond)
 			currentDate := time.Now().Format(time.RFC3339Nano)
 			randomPageID := strconv.Itoa(rand.Intn(100)) 
-			communication.SendWrite(&ctx_write, os.Getenv("PEER_ADDRESS"), &pb.WriteRequest{
+			communication.SendWrite(&ctx_write_i, os.Getenv("PEER_ADDRESS"), &pb.WriteRequest{
 				Date:        currentDate,
 				PageId:      randomPageID,
 				Event:       "click",
