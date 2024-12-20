@@ -196,6 +196,14 @@ If not, ensure that your Go bin directory (usually C:\Users\<your-username>\go\b
         docker-compose -f docker/docker-compose.yml up --build
         ```
 
+4. Running the ring visualiser
+       ```bash
+        cd frontend
+        npm i
+        npm run dev
+        ```
+    
+
 ### It should look like this!
 
 ![alt text](image-1.png)
