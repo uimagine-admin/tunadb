@@ -69,6 +69,11 @@ func (chr *ConsistentHashingRing) GetRingInfo() *RingInfo {
 
 	var nodesInfo []NodeInfo
 	for _, n := range chr.uniqueNodes {
+		if n.Status == types.NodeStatusDead {
+			chr.mu.Unlock()
+			chr.DeleteNode(n)
+			chr.mu.Lock()
+		}
 		nodesInfo = append(nodesInfo, NodeInfo{
 			ID:        n.ID,
 			Name:      n.Name,
@@ -91,6 +96,16 @@ func (chr *ConsistentHashingRing) GetRingInfo() *RingInfo {
 }
 
 func (chr *ConsistentHashingRing) GetTokenRangesInfo() *RingInfo {
+	chr.mu.Lock()
+	for _, n := range chr.uniqueNodes {
+		if n.Status == types.NodeStatusDead {
+			chr.mu.Unlock()
+			chr.DeleteNode(n)
+			chr.mu.Lock()
+		}
+	} 
+	chr.mu.Unlock()
+
 	chr.mu.RLock()
 	defer chr.mu.RUnlock()
 
@@ -221,6 +236,16 @@ func removeNodeFromSlice(slice []*types.Node, node *types.Node) []*types.Node {
 }
 
 func (chr *ConsistentHashingRing) GetRecordsReplicas(key string) (uint64, []*types.Node) {
+	chr.mu.Lock()
+	for _, n := range chr.uniqueNodes {
+		if n.Status == types.NodeStatusDead {
+			chr.mu.Unlock()
+			chr.DeleteNode(n)
+			chr.mu.Lock()
+		}
+	} 
+	chr.mu.Unlock()
+
 	chr.mu.RLock()
 	defer chr.mu.RUnlock()
 
@@ -274,6 +299,16 @@ func containsNode(nodes []*types.Node, node *types.Node) bool {
 // Public methods for other packages to check if the ring contains a node
 // This function should not be called inside a method that already has a lock on the ring
 func (chr *ConsistentHashingRing) DoesRingContainNode(node *types.Node) bool {
+	chr.mu.Lock()
+	for _, n := range chr.uniqueNodes {
+		if n.Status == types.NodeStatusDead {
+			chr.mu.Unlock()
+			chr.DeleteNode(n)
+			chr.mu.Lock()
+		}
+	} 
+	chr.mu.Unlock()
+
 	chr.mu.RLock()
 	defer chr.mu.RUnlock()
 
@@ -286,6 +321,16 @@ func (chr *ConsistentHashingRing) DoesRingContainNode(node *types.Node) bool {
 }
 
 func (chr *ConsistentHashingRing) GetTokenRangeForNode(nodeID string) []TokenRange {
+	chr.mu.Lock()
+	for _, n := range chr.uniqueNodes {
+		if n.Status == types.NodeStatusDead {
+			chr.mu.Unlock()
+			chr.DeleteNode(n)
+			chr.mu.Lock()
+		}
+	} 
+	chr.mu.Unlock()
+	
 	chr.mu.RLock()
 	defer chr.mu.RUnlock()
 
