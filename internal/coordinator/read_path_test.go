@@ -43,7 +43,7 @@ package coordinator
 // 	)
 
 // 	// Test that Read correctly fetches the quorum value
-// 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+// 	ctx, cancel := context.WithCancel(context.Background())
 // 	defer cancel()
 
 // 	val, err := handler.Read(ctx, "test_key")
@@ -80,7 +80,7 @@ package coordinator
 // 	}
 
 // 	// Test that Read fails when quorum is not reached
-// 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+// 	ctx, cancel := context.WithCancel(context.Background())
 // 	defer cancel()
 
 // 	val, err := handler.Read(ctx, "test_key")
@@ -90,7 +90,7 @@ package coordinator
 // }
 // func TestReceiveQuorum_Timeout(t *testing.T) {
 // 	// Test quorum timeout by setting a short context timeout
-// 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+// 	ctx, cancel := context.WithCancel(context.Background())
 // 	defer cancel()
 
 // 	resultsChan := make(chan *pb.ReadResponse)

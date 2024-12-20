@@ -11,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/coordinator"
@@ -46,7 +45,8 @@ func (s *server) Read(ctx context.Context, req *pb.ReadRequest) (*pb.ReadRespons
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
-	ctx_read, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx_read, cancel := context.WithCancel(context.Background())
+
 	defer cancel()
 
 	//call read_path
@@ -68,7 +68,6 @@ func (s *server) Write(ctx context.Context, req *pb.WriteRequest) (*pb.WriteResp
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
-	// ctx_write, cancel := context.WithTimeout(context.Background(), time.Second * 5)
 	ctx_write , cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -94,7 +93,7 @@ func (s *server) BulkWrite(ctx context.Context, req *pb.BulkWriteRequest) (*pb.B
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
 	//call write_path
-	ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+	ctx_write, _ := context.WithCancel(context.Background())
 	resp, err := c.BulkWrite(ctx_write, req)
 	if err != nil {
 		return &pb.BulkWriteResponse{}, err
@@ -145,7 +144,7 @@ func (s *server) Delete(ctx context.Context, req *pb.DeleteRequest) (*pb.DeleteR
 	currentNode := &types.Node{ID: os.Getenv("ID"), Name: os.Getenv("NODE_NAME"), IPAddress: "", Port: portnum}
 
 	c := coordinator.NewCoordinatorHandler(s.NodeRingView, currentNode, absoluteSavePath)
-	ctx_delete, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx_delete, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	resp, err := c.Delete(ctx_delete, req)
 	if err != nil {

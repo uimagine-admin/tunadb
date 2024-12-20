@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
@@ -78,7 +77,7 @@ func (h *CoordinatorHandler) Write(ctx context.Context, req *pb.WriteRequest) (*
 
 				address := fmt.Sprintf("%s:%d", replica.Name, replica.Port)
 
-				ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+				ctx_write, _ := context.WithCancel(context.Background())
 
 				resp, err := communication.SendWrite(&ctx_write, address, &pb.WriteRequest{
 					Date:        req.Date,

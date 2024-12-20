@@ -3,7 +3,6 @@ package communication
 import (
 	"context"
 	"log"
-	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"google.golang.org/grpc"
@@ -32,7 +31,7 @@ func SendRead(Ctx *context.Context, address string, req *pb.ReadRequest) (*pb.Re
 	client := pb.NewCassandraServiceClient(conn)
 
 	//additional configuration can pass in as param
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	defer cancel()
 
@@ -63,7 +62,7 @@ func SendWrite(Ctx *context.Context, address string, req *pb.WriteRequest) (*pb.
 
 	client := pb.NewCassandraServiceClient(conn)
 	//additional configuration can pass in as param
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	resp, err := client.Write(ctx, req)
@@ -105,7 +104,7 @@ func SendGossipMessage(Ctx *context.Context, address string, req *pb.GossipMessa
 	defer conn.Close()
 
 	client := pb.NewCassandraServiceClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	_, err = client.Gossip(ctx, req)
@@ -122,7 +121,7 @@ func SendDelete(Ctx *context.Context, address string, req *pb.DeleteRequest) (*p
 
 	client := pb.NewCassandraServiceClient(conn)
 	//additional configuration can pass in as param
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	resp, err := client.Delete(ctx, req)
@@ -144,7 +143,7 @@ func SendBulkWrite(Ctx *context.Context, address string, req *pb.BulkWriteReques
 
 	client := pb.NewCassandraServiceClient(conn)
 	//additional configuration can pass in as param
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	resp, err := client.BulkWrite(ctx, req)

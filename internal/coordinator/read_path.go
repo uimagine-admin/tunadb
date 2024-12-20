@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"sync"
-	"time"
 
 	pb "github.com/uimagine-admin/tunadb/api"
 	"github.com/uimagine-admin/tunadb/internal/communication"
@@ -102,7 +101,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 				// TODO replica.Name should be replaced with replica.Address
 				address := fmt.Sprintf("%s:%d", replica.IPAddress, replica.Port)
 
-				ctx_read, _ := context.WithTimeout(context.Background(), time.Second)
+				ctx_read, _ := context.WithCancel(context.Background())
 				//send the read request with the key
 				resp, err := communication.SendRead(&ctx_read, address, &pb.ReadRequest{
 					Date:     req.Date,
@@ -161,7 +160,7 @@ func (h *CoordinatorHandler) Read(ctx context.Context, req *pb.ReadRequest) (*pb
 			
 							address := fmt.Sprintf("%s:%d", replica.IPAddress, replica.Port)
 			
-							ctx_write, _ := context.WithTimeout(context.Background(), time.Second)
+							ctx_write, _ := context.WithCancel(context.Background())
 							
 		
 							ring := h.GetRing()
