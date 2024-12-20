@@ -197,6 +197,7 @@ If not, ensure that your Go bin directory (usually C:\Users\<your-username>\go\b
         ```
 
 4. Running the ring visualiser
+   
        ```bash
         cd frontend
         npm i
