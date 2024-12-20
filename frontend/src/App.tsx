@@ -1,10 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import React, { useEffect, useRef, useState } from "react";
+import { Doughnut } from "react-chartjs-2";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-const MAX_UINT64 = BigInt('18446744073709551616'); // 2^64
+const MAX_UINT64 = BigInt("18446744073709551616"); // 2^64
 
 interface NodeInfo {
   id: string;
@@ -39,12 +39,12 @@ function App() {
   // Color functions
   const getNodeStatusColor = (status: string) => {
     switch (status) {
-      case 'ALIVE':
-        return 'text-green-600';
-      case 'SUSPECT':
-        return 'text-yellow-600';
+      case "ALIVE":
+        return "text-green-600";
+      case "SUSPECT":
+        return "text-yellow-600";
       default:
-        return 'text-red-600';
+        return "text-red-600";
     }
   };
 
@@ -61,24 +61,24 @@ function App() {
       const data: RingResponse = await res.json();
       handleDataUpdate(data);
     } catch (err) {
-      console.error('Error fetching ring data:', err);
+      console.error("Error fetching ring data:", err);
     }
   };
 
   // Handle data updates: detect changes and log them
   const handleDataUpdate = (newData: RingResponse) => {
     const oldData = prevRingDataRef.current;
-    let logMsg = '';
+    let logMsg = "";
 
     if (!oldData) {
       // First load
-      logMsg = 'Initial data loaded.';
+      logMsg = "Initial data loaded.";
     } else {
       const changes = detectChanges(oldData, newData);
       if (changes.length === 0) {
-        logMsg = 'No change detected.';
+        logMsg = "No change detected.";
       } else {
-        logMsg = `Changes detected: ${changes.join(', ')}`;
+        logMsg = `Changes detected: ${changes.join(", ")}`;
       }
     }
 
@@ -162,8 +162,8 @@ function App() {
 
     // Sort by starting token
     const sortedRanges = rangeEntries.sort((a, b) => {
-      const startA = BigInt(a[0].split(':')[0]);
-      const startB = BigInt(b[0].split(':')[0]);
+      const startA = BigInt(a[0].split(":")[0]);
+      const startB = BigInt(b[0].split(":")[0]);
       return startA < startB ? -1 : startA > startB ? 1 : 0;
     });
 
@@ -190,7 +190,7 @@ function App() {
     const hoverInfos: { label: string; nodes: string[] }[] = [];
 
     for (const [rangeStr, nodes] of sortedRanges) {
-      const [startStr, endStr] = rangeStr.split(':');
+      const [startStr, endStr] = rangeStr.split(":");
       const start = BigInt(startStr);
       const end = BigInt(endStr);
 
@@ -214,10 +214,10 @@ function App() {
       labels,
       datasets: [
         {
-          label: 'Token Ranges',
+          label: "Token Ranges",
           data: dataValues,
           backgroundColor: backgroundColors,
-          borderColor: '#fff',
+          borderColor: "#fff",
           borderWidth: 1,
           hoverOffset: 10,
         },
@@ -234,7 +234,7 @@ function App() {
               const info = hoverInfos[idx];
               return [
                 `Range: ${info.label}`,
-                `Nodes: ${info.nodes.join(', ')}`,
+                `Nodes: ${info.nodes.join(", ")}`,
               ];
             },
           },
@@ -243,7 +243,7 @@ function App() {
           display: false,
         },
       },
-      cutout: '50%', // doughnut style
+      cutout: "50%", // doughnut style
     };
 
     setChartData({ data, options });
@@ -296,7 +296,7 @@ function App() {
                         </span>
                       </div>
                       <div className="text-sm text-gray-600">
-                        IP: {node.ip_address} | Port: {node.port} | Status:{' '}
+                        IP: {node.ip_address} | Port: {node.port} | Status:{" "}
                         <span className={`${statusColor}`}>{node.status}</span>
                       </div>
                     </li>
@@ -310,7 +310,7 @@ function App() {
             <ul className="space-y-2">
               {logs.map((log, index) => (
                 <li key={index} className="text-sm text-gray-700">
-                  <span className="font-semibold">{log.timestamp}:</span>{' '}
+                  <span className="font-semibold">{log.timestamp}:</span>{" "}
                   {log.message}
                 </li>
               ))}

@@ -34,7 +34,7 @@ func StartNode(handler *gossip.GossipHandler) (*grpc.Server, error) {
 	pb.RegisterCassandraServiceServer(grpcServer, &server{
 		GossipHandler: handler,
 	})
-	
+
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", handler.NodeInfo.Port))
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen: %v", err)
@@ -50,15 +50,15 @@ func StartNode(handler *gossip.GossipHandler) (*grpc.Server, error) {
 }
 
 /*
- Helper function to create an initial system with numNodes nodes and return the nodes and their corresponding rings
- and begin gossip protocol for each node
+Helper function to create an initial system with numNodes nodes and return the nodes and their corresponding rings
+and begin gossip protocol for each node
 
- numNodes: Number of nodes in the system
- gossipFanOut: Number of nodes to fan out each message
- replicationFactor: Number of replicas for each node
- numberOfVirtualNodes: Number of virtual nodes for each node
+numNodes: Number of nodes in the system
+gossipFanOut: Number of nodes to fan out each message
+replicationFactor: Number of replicas for each node
+numberOfVirtualNodes: Number of virtual nodes for each node
 */
-func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationFactor int, gossipFanOut int, suspectToDeadTimeout int, gossipInterval int) ([]*types.Node,[]*gossip.GossipHandler, []*grpc.Server, []*rp.ConsistentHashingRing, []*context.Context, []*context.CancelFunc) {
+func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationFactor int, gossipFanOut int, suspectToDeadTimeout int, gossipInterval int) ([]*types.Node, []*gossip.GossipHandler, []*grpc.Server, []*rp.ConsistentHashingRing, []*context.Context, []*context.CancelFunc) {
 	// step 0: create numNodes nodes and their corresponding rings
 	nodes := make([]*types.Node, numNodes)
 	nodeRings := make([]*rp.ConsistentHashingRing, numNodes)
@@ -112,7 +112,7 @@ func createInitialSystem(numNodes int, numberOfVirtualNodes uint64, replicationF
 			log.Printf("Failed to start gRPC server for node %s: %v", nodes[i].Name, err)
 			defer cancel()
 			server.Stop()
-			return nil, nil, nil, nil, nil, nil 
+			return nil, nil, nil, nil, nil, nil
 		}
 		servers = append(servers, server)
 
@@ -133,8 +133,12 @@ func stopServers(servers []*grpc.Server, cancelContexts []*context.CancelFunc) {
 	}
 }
 
-
-
+// ==========================================================================================================================
+// ==========================================================================================================================
+// Test cases
+// Please note: Run the test cases individually to avoid issues
+// ==========================================================================================================================
+// ==========================================================================================================================
 
 func TestGossipProtocolIntegration(t *testing.T) {
 	// Step 0: Create an initial system with 5 nodes
@@ -145,7 +149,7 @@ func TestGossipProtocolIntegration(t *testing.T) {
 	suspectToDeadTimeout := 8
 	gossipInterval := 3
 
-	nodes, gossipHandlers, servers, nodeRings, _, cancelContexts := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut, suspectToDeadTimeout,gossipInterval)
+	nodes, gossipHandlers, servers, nodeRings, _, cancelContexts := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut, suspectToDeadTimeout, gossipInterval)
 
 	defer log.Println("TestGossipProtocolIntegration completed")
 	defer stopServers(servers, cancelContexts)
@@ -178,8 +182,8 @@ func TestAddNodesToStableSystem(t *testing.T) {
 	gossipFanOut := 2
 	suspectToDeadTimeout := 8
 	gossipInterval := 3
-	
-	existingNodes, existingGossipHandlers, servers, nodeRings, _, cancelContext := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut,suspectToDeadTimeout,gossipInterval)
+
+	existingNodes, existingGossipHandlers, servers, nodeRings, _, cancelContext := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut, suspectToDeadTimeout, gossipInterval)
 
 	defer log.Println("TestGossipProtocolIntegration completed")
 	defer stopServers(servers, cancelContext)
@@ -197,13 +201,13 @@ func TestAddNodesToStableSystem(t *testing.T) {
 	relativePathSaveDir := fmt.Sprintf("../db/internal/data/%s.json", newNode.ID)
 	absolutePathSaveDir := utils.GetPath(relativePathSaveDir)
 
-	newNodeRing := rp.CreateConsistentHashingRing(newNode,10, 3)
+	newNodeRing := rp.CreateConsistentHashingRing(newNode, 10, 3)
 	dataHandler := dataBalancing.NewDistributionHandler(newNodeRing, newNode, absolutePathSaveDir)
-	
-	newNodeHandler := gossip.NewGossipHandler(newNode,newNodeRing,gossipFanOut,suspectToDeadTimeout, gossipInterval, dataHandler)
+
+	newNodeHandler := gossip.NewGossipHandler(newNode, newNodeRing, gossipFanOut, suspectToDeadTimeout, gossipInterval, dataHandler)
 	newServer, newServerErr := StartNode(newNodeHandler)
 	if newServerErr != nil {
-		t.Fatalf("Failed to start gRPC server for node %s: %v",newNode.Name, newServerErr)
+		t.Fatalf("Failed to start gRPC server for node %s: %v", newNode.Name, newServerErr)
 	}
 	defer newServer.Stop()
 
@@ -213,12 +217,11 @@ func TestAddNodesToStableSystem(t *testing.T) {
 
 	// Start gossip protocol for the new node
 	ctxNewNode, cancelNewNode := context.WithCancel(context.Background())
-	go newNodeHandler.Start(ctxNewNode,2)
+	go newNodeHandler.Start(ctxNewNode, 2)
 	defer cancelNewNode()
 
 	// Allow gossip to propagate
 	time.Sleep(6 * time.Second)
-
 
 	// Step 5: Verify that the new node are present in all handlers' memberships
 	newNodeID := "gossip_test_node_3"
@@ -241,7 +244,7 @@ func TestAddNodesToStableSystem(t *testing.T) {
 	// Step 6: Verify that the new node is present in the ring, and all existing nodes are present in the new node's ring
 	existingGossipHandlers = append(existingGossipHandlers, newNodeHandler)
 	nodeRings = append(nodeRings, newNodeRing)
-	for i , existingGossipHandler := range existingGossipHandlers {
+	for i, existingGossipHandler := range existingGossipHandlers {
 		// Get all nodes in the membership
 		members := existingGossipHandler.Membership.GetAllNodes()
 		for _, member := range members {
@@ -250,10 +253,10 @@ func TestAddNodesToStableSystem(t *testing.T) {
 	}
 }
 
-func TestRemoveUnresponsiveNode(t *testing.T){
+func TestRemoveUnresponsiveNode(t *testing.T) {
 	// create an initial system with 3 nodes
 	numNodes := 3
-	nodeToRemoveIndex := numNodes-1
+	nodeToRemoveIndex := numNodes - 1
 	numVirtualNodes := uint64(3)
 	replicationFactor := 2
 	gossipFanOut := 2
@@ -274,7 +277,7 @@ func TestRemoveUnresponsiveNode(t *testing.T){
 	time.Sleep(15 * time.Second)
 
 	// step 6: Verify that the unresponsive node is marked as dead in all handlers' memberships
-	for _ , handler := range existingGossipHandlers[:nodeToRemoveIndex] {
+	for _, handler := range existingGossipHandlers[:nodeToRemoveIndex] {
 		members := handler.Membership.GetAllNodes()
 		for _, member := range members {
 			if member.ID != fmt.Sprintf("gossip_test_node_%d", nodeToRemoveIndex) {
@@ -289,65 +292,65 @@ func TestRemoveUnresponsiveNode(t *testing.T){
 }
 
 func TestDeadNodeRecovery(t *testing.T) {
-    // Step 1: Create an initial system with 4 nodes
-    numNodes := 4
-    numVirtualNodes := uint64(3)
-    replicationFactor := 2
-    gossipFanOut := 2
+	// Step 1: Create an initial system with 4 nodes
+	numNodes := 4
+	numVirtualNodes := uint64(3)
+	replicationFactor := 2
+	gossipFanOut := 2
 	suspectToDeadTimeout := 5
 	gossipInterval := 3
 
-    nodes, gossipHandlers, servers, _, _, cancelContexts := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut, suspectToDeadTimeout,gossipInterval)
+	nodes, gossipHandlers, servers, _, _, cancelContexts := createInitialSystem(numNodes, numVirtualNodes, replicationFactor, gossipFanOut, suspectToDeadTimeout, gossipInterval)
 
-    // Step 2: Simulate a node failure
-    failedNodeIndex := 3
-    servers[failedNodeIndex].Stop()
+	// Step 2: Simulate a node failure
+	failedNodeIndex := 3
+	servers[failedNodeIndex].Stop()
 	(*cancelContexts[failedNodeIndex])()
-    log.Printf("Simulating failure of node %s", nodes[failedNodeIndex].Name)
+	log.Printf("Simulating failure of node %s", nodes[failedNodeIndex].Name)
 
-    // Allow time for gossip to propagate the failure
-    time.Sleep(12 * time.Second)
+	// Allow time for gossip to propagate the failure
+	time.Sleep(12 * time.Second)
 
-    // Verify that the failed node is marked as dead in other nodes' memberships
-    for _, handler := range gossipHandlers[:failedNodeIndex] {
-        members := handler.Membership.GetAllNodes()
-        for _, member := range members {
-            if member.ID == nodes[failedNodeIndex].ID {
-                assert.True(t, member.IsDead(), "Node %s is still marked as alive", member.ID)
-            }
-        }
-    }
+	// Verify that the failed node is marked as dead in other nodes' memberships
+	for _, handler := range gossipHandlers[:failedNodeIndex] {
+		members := handler.Membership.GetAllNodes()
+		for _, member := range members {
+			if member.ID == nodes[failedNodeIndex].ID {
+				assert.True(t, member.IsDead(), "Node %s is still marked as alive", member.ID)
+			}
+		}
+	}
 
-    // Step 3: Simulate the failed node recovering and responding
-    recoveredServer, err := StartNode(gossipHandlers[failedNodeIndex])
-    if err != nil {
-        t.Fatalf("Failed to restart gRPC server for recovered node: %v", err)
-    }
+	// Step 3: Simulate the failed node recovering and responding
+	recoveredServer, err := StartNode(gossipHandlers[failedNodeIndex])
+	if err != nil {
+		t.Fatalf("Failed to restart gRPC server for recovered node: %v", err)
+	}
 
 	contextNew, cancelNew := context.WithCancel(context.Background())
 	go gossipHandlers[failedNodeIndex].Start(contextNew, gossipFanOut)
 
 	cancelContexts[failedNodeIndex] = &cancelNew
-    defer recoveredServer.Stop()
+	defer recoveredServer.Stop()
 	defer stopServers(servers, cancelContexts)
 	defer log.Println("TestDeadNodeRecovery completed")
 
-    log.Printf("[%s] is now responding", nodes[failedNodeIndex].ID)
+	log.Printf("[%s] is now responding", nodes[failedNodeIndex].ID)
 
-    // Allow time for gossip to propagate the recovery
-    time.Sleep(10 * time.Second)
+	// Allow time for gossip to propagate the recovery
+	time.Sleep(10 * time.Second)
 
-    // Step 4: Verify that the recovered node is marked as alive in other nodes' memberships
-    for _, handler := range gossipHandlers[:failedNodeIndex] {
-        members := handler.Membership.GetAllNodes()
-        found := false
-        for _, member := range members {
-            if member.ID == nodes[failedNodeIndex].ID {
-                found = true
-                assert.True(t, member.IsAlive(), "Recovered node %s is not marked as alive", member.ID)
-                break
-            }
-        }
-        assert.True(t, found, "Node %s not found in membership after recovery", nodes[failedNodeIndex].ID)
-    }
+	// Step 4: Verify that the recovered node is marked as alive in other nodes' memberships
+	for _, handler := range gossipHandlers[:failedNodeIndex] {
+		members := handler.Membership.GetAllNodes()
+		found := false
+		for _, member := range members {
+			if member.ID == nodes[failedNodeIndex].ID {
+				found = true
+				assert.True(t, member.IsAlive(), "Recovered node %s is not marked as alive", member.ID)
+				break
+			}
+		}
+		assert.True(t, found, "Node %s not found in membership after recovery", nodes[failedNodeIndex].ID)
+	}
 }
